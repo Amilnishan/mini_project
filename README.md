@@ -17,3 +17,4 @@ validate the logic, making the system suitable for real-world use in postal and 
 operations. By integrating AI-based OCR with postal sorting logic and visual animation, 
 this project provides an efficient, realistic model for reducing manual effort and 
 improving sorting speed.
+
