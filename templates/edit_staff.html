@@ -1,0 +1,51 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Edit Staff{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-8 col-lg-6">
+    <div class="card shadow-sm">
+      <div class="card-header">
+        <h3 class="fw-bold text-center">Edit Staff Member</h3>
+      </div>
+      <div class="card-body">
+        <!-- The form will POST to the same URL, but with the staff_id -->
+        <form method="POST" action="{{ url_for('edit_staff', staff_id=staff.staff_id) }}">
+          <div class="mb-3">
+            <label for="staff_name" class="form-label">Full Name</label>
+            <!-- Pre-fill the value with the staff member's current name -->
+            <input type="text" class="form-control" id="staff_name" name="staff_name" value="{{ staff.staff_name }}" required>
+          </div>
+          <div class="mb-3">
+            <label for="phone" class="form-label">Phone Number</label>
+            <input type="tel" class="form-control" id="phone" name="phone" value="{{ staff.phone }}" required>
+          </div>
+          <hr>
+          <div class="mb-3">
+            <label for="username" class="form-label">Username</label>
+            <input type="text" class="form-control" id="username" name="username" value="{{ staff.username }}" required>
+          </div>
+          <div class="mb-3">
+            <label for="password" class="form-label">New Password</label>
+            <!-- Password is not pre-filled for security. It's optional. -->
+            <input type="password" class="form-control" id="password" name="password">
+            <div class="form-text">Leave blank to keep the current password.</div>
+          </div>
+          <div class="mb-3">
+            <label for="status" class="form-label">Status</label>
+            <select class="form-select" id="status" name="status">
+              <option value="active" {% if staff.status == 'active' %}selected{% endif %}>Active</option>
+              <option value="inactive" {% if staff.status == 'inactive' %}selected{% endif %}>Inactive</option>
+            </select>
+          </div>
+          <div class="d-grid gap-2">
+            <button type="submit" class="btn btn-primary">Update Staff</button>
+            <a href="{{ url_for('manage_staff') }}" class="btn btn-secondary">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

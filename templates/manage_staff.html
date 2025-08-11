@@ -1,0 +1,119 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Manage Staff{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2 class="fw-bold">Manage Staff</h2>
+  <!-- Button to trigger the 'Add Staff' modal -->
+  <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addStaffModal">
+    + Add New Staff
+  </button>
+</div>
+
+<!-- Display Flash Messages for success or errors -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="alert alert-{{ category }} text-center" role="alert">
+        {{ message }}
+      </div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+<script>
+  // Auto-dismiss flash messages after 2.5 seconds
+  window.addEventListener('DOMContentLoaded', function() {
+    setTimeout(function() {
+      document.querySelectorAll('.alert').forEach(function(alert) {
+        alert.classList.add('fade');
+        alert.classList.remove('show');
+        setTimeout(function() { alert.remove(); }, 500); // Remove from DOM after fade
+      });
+    }, 2500);
+  });
+</script>
+
+<div class="card shadow-sm">
+  <div class="card-body">
+    <table class="table table-hover">
+      <thead class="table-light">
+        <tr>
+          <th>ID</th>
+          <th>Full Name</th>
+          <th>Phone</th>
+          <th>Username</th>
+          <th>Joined Date</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- We will loop through staff data from the backend here -->
+        {% for staff_member in staff_list %}
+        <tr>
+          <td>{{ staff_member.staff_id }}</td>
+          <td>{{ staff_member.staff_name }}</td>
+          <td>{{ staff_member.phone }}</td>
+          <td>{{ staff_member.username }}</td>
+          <td>{{ staff_member.joined_date.strftime('%Y-%m-%d') }}</td>
+          <td>
+            {% if staff_member.status == 'active' %}
+              <span class="badge bg-success">Active</span>
+            {% else %}
+              <span class="badge bg-danger">Inactive</span>
+            {% endif %}
+          </td>
+        <td>
+        <!-- The link to the edit page remains the same -->
+        <a href="{{ url_for('edit_staff', staff_id=staff_member.staff_id) }}" class="btn btn-sm btn-warning">Edit</a>
+       </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="7" class="text-center">No staff members found.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Modal for Adding New Staff -->
+<div class="modal fade" id="addStaffModal" tabindex="-1" aria-labelledby="addStaffModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="addStaffModalLabel">Add New Staff Member</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="POST" action="{{ url_for('manage_staff') }}">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label for="staff_name" class="form-label">Full Name</label>
+            <input type="text" class="form-control" id="staff_name" name="staff_name" required>
+          </div>
+          <div class="mb-3">
+            <label for="phone" class="form-label">Phone Number</label>
+            <input type="tel" class="form-control" id="phone" name="phone" required>
+          </div>
+          <hr>
+          <div class="mb-3">
+            <label for="username" class="form-label">Username</label>
+            <input type="text" class="form-control" id="username" name="username" required>
+          </div>
+          <div class="mb-3">
+            <label for="password" class="form-label">Password</label>
+            <input type="password" class="form-control" id="password" name="password" required>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          <button type="submit" class="btn btn-primary">Add Staff</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}```

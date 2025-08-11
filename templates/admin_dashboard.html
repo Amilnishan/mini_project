@@ -1,0 +1,15 @@
+<!-- This page extends the admin_base.html file -->
+{% extends "admin_base.html" %}
+
+<!-- Set the title for this specific page -->
+{% block title %}Admin Home{% endblock %}
+
+<!-- This is the main content for the page -->
+{% block content %}
+  <div class="p-5 mb-4 admin-animated-bg text-center">
+    <div class="container-fluid py-5">
+      <h1 class="display-5 fw-bold">Welcome, {{ session.username if session.username else 'Admin' }}!</h1>
+      <p class="fs-4">This is the central hub for all management functions. Use the navigation bar above to manage staff or view sorting history.</p>
+    </div>
+  </div>
+{% endblock %}

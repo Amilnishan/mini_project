@@ -1,3 +1,31 @@
+/* Animated background for staff dashboard */
+.staff-animated-bg {
+  background: linear-gradient(270deg, #43e97b, #38f9d7, #7b2ff2, #f357a8, #43e97b);
+  background-size: 1000% 1000%;
+  animation: staffGradientMove 12s ease infinite;
+  border-radius: 1.5rem;
+  box-shadow: 0 0 32px 0 rgba(67,233,123,0.15);
+}
+
+@keyframes staffGradientMove {
+  0% {background-position: 0% 50%;}
+  50% {background-position: 100% 50%;}
+  100% {background-position: 0% 50%;}
+}
+/* Animated background for admin dashboard */
+.admin-animated-bg {
+  background: linear-gradient(270deg, #7b2ff2, #f357a8, #43e97b, #38f9d7, #7b2ff2);
+  background-size: 1000% 1000%;
+  animation: adminGradientMove 12s ease infinite;
+  border-radius: 1.5rem;
+  box-shadow: 0 0 32px 0 rgba(123,47,242,0.15);
+}
+
+@keyframes adminGradientMove {
+  0% {background-position: 0% 50%;}
+  50% {background-position: 100% 50%;}
+  100% {background-position: 0% 50%;}
+}
 .hero-section {
       background: url('/static/images/automation.jpg') no-repeat center center;
       background-size: cover;
@@ -34,9 +62,18 @@
     }
 
 body {
-  background-color: #f8f9fa;
-  height: 100vh;
+  background: linear-gradient(135deg, #7b2ff2 0%, #f357a8 100%);
+  min-height: 100vh;
   margin: 0;
+}
+
+/* Make login card stand out on purple background */
+.login-container {
+  min-height: 100vh;
+}
+.login-card {
+  background: rgba(255,255,255,0.95);
+  border-radius: 1rem;
 }
 
 .login-container {
