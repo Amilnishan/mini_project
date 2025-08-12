@@ -1,0 +1,129 @@
+{% extends "staff_base.html" %}
+
+{% block title %}Live Capture & Sort{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-10 col-lg-8">
+            <div class="text-center mb-4">
+                <h2 class="fw-bold">Live Postal Sorting</h2>
+                <p class="lead">Point the camera at the postal item's address and capture.</p>
+            </div>
+
+            <!-- Video Feed -->
+            <div id="video-container" class="border rounded shadow-sm mb-3" style="background-color: #000;">
+                <video id="video" autoplay playsinline style="width: 100%; height: auto;"></video>
+            </div>
+            <canvas id="canvas" style="display:none;"></canvas>
+
+            <!-- Capture Button -->
+            <div class="d-grid gap-2 mb-3">
+                <button id="capture" class="btn btn-primary btn-lg">
+                    <span id="button-text">Capture and Sort</span>
+                    <span id="loading-spinner" class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display: none;"></span>
+                </button>
+            </div>
+
+            <!-- Results Area -->
+            <div class="card shadow-sm">
+                <div class="card-header h5">
+                    Sorting Result
+                </div>
+                <div class="card-body">
+                    <div id="result-area">
+                        The sorting result will appear here...
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+<!-- Add the custom JavaScript at the end of the content block -->
+{% block scripts %}
+<script>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const captureButton = document.getElementById('capture');
+    const buttonText = document.getElementById('button-text');
+    const loadingSpinner = document.getElementById('loading-spinner');
+    const resultArea = document.getElementById('result-area');
+
+    // Access the camera
+    async function setupCamera() {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { facingMode: 'environment' } // Prefer the rear camera
+            });
+            video.srcObject = stream;
+        } catch (err) {
+            console.error("Error accessing the camera: ", err);
+            resultArea.innerHTML = `<div class="alert alert-danger">Could not access the camera. Please ensure a camera is enabled and grant permission in your browser.</div>`;
+        }
+    }
+
+    // Call setupCamera when the page loads
+    window.addEventListener('load', setupCamera);
+
+    captureButton.addEventListener('click', () => {
+        // Show loading state
+        buttonText.textContent = 'Processing...';
+        loadingSpinner.style.display = 'inline-block';
+        captureButton.disabled = true;
+        resultArea.innerHTML = 'Capturing image and processing...';
+
+        const context = canvas.getContext('2d');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        const imageDataURL = canvas.toDataURL('image/jpeg');
+
+        // Send image data to our new Flask backend route
+        fetch("{{ url_for('process_capture') }}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ image: imageDataURL })
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Display the results from the server
+            if (data.status === 'success') {
+                resultArea.innerHTML = `
+                    <div class="alert alert-success">
+                        <h4 class="alert-heading">Success!</h4>
+                        <p><strong>PIN Code Found:</strong> ${data.pin_code}</p>
+                        <p><strong>Assigned to Bin:</strong> ${data.bin_name}</p>
+                        <hr>
+                        <p class="mb-0">Full Extracted Text:</p>
+                        <pre><code>${data.full_text}</code></pre>
+                    </div>`;
+            } else {
+                resultArea.innerHTML = `
+                    <div class="alert alert-danger">
+                        <h4 class="alert-heading">Error: ${data.error_type}</h4>
+                        <p>${data.message}</p>
+                        <hr>
+                        <p class="mb-0">Full Extracted Text:</p>
+                        <pre><code>${data.full_text || 'No text could be extracted.'}</code></pre>
+                    </div>`;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            resultArea.innerHTML = `<div class="alert alert-danger">An error occurred while communicating with the server. Check the console for details.</div>`;
+        })
+        .finally(() => {
+            // Restore button to original state
+            buttonText.textContent = 'Capture and Sort';
+            loadingSpinner.style.display = 'none';
+            captureButton.disabled = false;
+        });
+    });
+</script>
+{% endblock %}

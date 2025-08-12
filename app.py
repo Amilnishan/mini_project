@@ -1,6 +1,15 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 import mysql.connector
 import bcrypt
+import os
+import re
+import cv2
+import numpy as np
+import pytesseract
+import base64
+
+# CONFIGURE TESSERACT *BEFORE* YOU CREATE THE FLASK APP
+pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
 app = Flask(__name__)
 
@@ -10,7 +19,7 @@ app.secret_key = 'your_super_secret_key'
 # --- IMPORTANT: CONFIGURE YOUR DATABASE CONNECTION ---
 db_config = {
     'host': 'localhost',
-    'user': 'root', --
+    'user': 'root',
     'password': 'Root@_123',
     'database': 'postal_sort'
 }
@@ -230,6 +239,125 @@ def staff_dashboard():
     # If not logged in or not staff, redirect to login
     return redirect(url_for('login'))
 
+def find_pincode(text):
+    """Uses regex to find a 6-digit number in the given text."""
+    # This regex looks for a 6-digit number that is not part of a larger number.
+    # \b is a word boundary.
+    match = re.search(r'\b\d{6}\b', text)
+    if match:
+        return match.group(0)
+    return None
+
+
+@app.route("/staff/capture")
+def capture_page():
+    """Renders the live capture page for staff."""
+    if 'loggedin' not in session or session['role'] != 'staff':
+        return redirect(url_for('login'))
+    return render_template('live_capture.html')
+
+
+@app.route('/staff/process_capture', methods=['POST'])
+def process_capture():
+    """Receives an image, performs OCR, finds pincode, and logs it."""
+    if 'loggedin' not in session or session['role'] != 'staff':
+        return jsonify({'error': 'Authentication required'}), 401
+
+    conn = None
+    try:
+        # --- 1. Receive and Decode the Image ---
+        data = request.get_json()
+        image_data = data['image'].split(',')[1]
+        decoded_image = base64.b64decode(image_data)
+        np_arr = np.frombuffer(decoded_image, np.uint8)
+        img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+
+        # --- 2. Image Preprocessing ---
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        blurred = cv2.medianBlur(gray, 3)
+        # Adaptive thresholding is generally good for varied lighting
+        thresh = cv2.adaptiveThreshold(
+            blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 11, 4
+        )
+
+        # --- 3. OCR and Pincode Extraction ---
+        custom_config = r'--oem 3 --psm 6'
+        full_text = pytesseract.image_to_string(thresh, config=custom_config)
+        pin_code = find_pincode(full_text)
+
+        # --- 4. Database Interaction ---
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        staff_id = session.get('staff_id') # Get staff_id from the session
+
+        # First, create a record for the parcel being processed
+        # For simplicity, we'll use a placeholder for the image path
+        cursor.execute(
+            "INSERT INTO Parcel (image_path, status, staff_id) VALUES (%s, %s, %s)",
+            ('live_capture.jpg', 'Processing', staff_id)
+        )
+        parcel_id = cursor.lastrowid
+        
+        if not pin_code:
+            # Log the error
+            cursor.execute(
+                "INSERT INTO Error_Logs (parcel_id, error_type) VALUES (%s, %s)",
+                (parcel_id, 'PIN Not Found')
+            )
+            conn.commit()
+            return jsonify({
+                'status': 'error',
+                'error_type': 'PIN Not Found',
+                'message': 'A 6-digit PIN code could not be identified in the text.',
+                'full_text': full_text
+            })
+
+        # If PIN is found, look for the bin
+        cursor.execute("SELECT bin_id, bin_name FROM Bin WHERE pin = %s", (pin_code,))
+        bin_record = cursor.fetchone()
+
+        if not bin_record:
+            # Log the error
+            cursor.execute(
+                "INSERT INTO Error_Logs (parcel_id, error_type) VALUES (%s, %s)",
+                (parcel_id, 'Bin Not Mapped')
+            )
+            conn.commit()
+            return jsonify({
+                'status': 'error',
+                'error_type': 'Bin Not Mapped',
+                'message': f'PIN code {pin_code} was found, but it is not mapped to any bin.',
+                'full_text': full_text
+            })
+
+        # --- 5. Success: Log the Sorted Item ---
+        bin_id = bin_record['bin_id']
+        bin_name = bin_record['bin_name']
+        
+        # Log to Sorted_Item table
+        cursor.execute(
+            "INSERT INTO Sorted_Item (parcel_id, staff_id, bin_id) VALUES (%s, %s, %s)",
+            (parcel_id, staff_id, bin_id)
+        )
+        # Update parcel status
+        cursor.execute("UPDATE Parcel SET status = 'Sorted' WHERE parcel_id = %s", (parcel_id,))
+        
+        conn.commit()
+        
+        return jsonify({
+            'status': 'success',
+            'pin_code': pin_code,
+            'bin_name': bin_name,
+            'full_text': full_text
+        })
+
+    except Exception as e:
+        # Log any unexpected server error
+        return jsonify({'status': 'error', 'error_type': 'Server Error', 'message': str(e)})
+    finally:
+        if conn and conn.is_connected():
+            cursor.close()
+            conn.close()
 
 if __name__ == '__main__':
     app.run(debug=True)
