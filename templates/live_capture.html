@@ -3,36 +3,186 @@
 {% block title %}Live Capture & Sort{% endblock %}
 
 {% block content %}
+<!-- CSS for the text capture guide overlay -->
+<style>
+    #video-container {
+        position: relative;
+    }
+
+    #capture-guide {
+        position: absolute;
+        /* CHANGED: Square dimensions instead of rectangle (80% x 45%) */
+        width: 50%;  /* Reduced from 80% to 50% for smaller square */
+        height: 50%; /* Changed from 45% to 50% to match width - creates perfect square */
+        box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.3); /* Much lighter overlay - changed from 0.6 to 0.3 */
+        
+        /* Define the size and look of the transparent window */
+        border: 3px solid #00ff00; /* Bright green border */
+        border-style: dashed; /* Dashed border for text focus indication */
+        box-sizing: border-box;
+        
+        /* Center the transparent window */
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        pointer-events: none; /* Make it so you can't click on the overlay */
+        z-index: 10;
+    }
+
+    /* UPDATED: Corner guides adjusted for square shape */
+    #capture-guide::before,
+    #capture-guide::after {
+        content: '';
+        position: absolute;
+        width: 15px;  /* Reduced from 20px to 15px for smaller square */
+        height: 15px; /* Reduced from 20px to 15px for smaller square */
+        border: 3px solid #ffff00; /* Yellow corners for better visibility */
+    }
+
+    #capture-guide::before {
+        top: -3px;
+        left: -3px;
+        border-right: none;
+        border-bottom: none;
+    }
+
+    #capture-guide::after {
+        bottom: -3px;
+        right: -3px;
+        border-left: none;
+        border-top: none;
+    }
+
+    /* UPDATED: Text guidance updated for square capture */
+    #text-guide {
+        position: absolute;
+        top: -40px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 255, 0, 0.9);
+        color: white;
+        padding: 5px 15px;
+        border-radius: 15px;
+        font-size: 14px;
+        font-weight: bold;
+        white-space: nowrap;
+        pointer-events: none;
+        z-index: 11;
+    }
+
+    /* Ensure buttons are clickable */
+    .btn {
+        position: relative;
+        z-index: 20;
+        pointer-events: auto;
+    }
+
+    /* Ensure video container doesn't interfere with button clicks */
+    #video-container {
+        z-index: 1;
+        background-color: #f8f9fa !important; /* Light background instead of black */
+    }
+
+    /* UPDATED: Grid lines adjusted for square overlay */
+    #grid-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 5;
+    }
+
+    .grid-line-horizontal {
+        position: absolute;
+        width: 100%;
+        height: 1px;
+        background: rgba(255, 255, 0, 0.3); /* Reduced opacity for less distraction */
+        left: 0;
+    }
+
+    .grid-line-vertical {
+        position: absolute;
+        height: 100%;
+        width: 1px;
+        background: rgba(255, 255, 0, 0.3); /* Reduced opacity for less distraction */
+        top: 0;
+    }
+
+    /* Ensure page background is normal */
+    body {
+        background-color: #ffffff !important;
+    }
+
+    .container {
+        background-color: #ffffff;
+    }
+</style>
+
 <div class="container">
     <div class="row justify-content-center">
-        <div class="col-md-10 col-lg-8">
+        <div class="col-lg-8">
             <div class="text-center mb-4">
                 <h2 class="fw-bold">Live Postal Sorting</h2>
-                <p class="lead">Point the camera at the postal item's address and capture.</p>
+                <!-- UPDATED: Instructions changed for square capture -->
+                <p class="lead">Position the address/PIN code inside the green square and capture.</p>
+                <div class="alert alert-info">
+                    <small><strong>📋 Text Capture Tips:</strong> Keep your hands outside the green square. Ensure good lighting and align text within the square frame.</small>
+                </div>
             </div>
 
-            <!-- Video Feed -->
-            <div id="video-container" class="border rounded shadow-sm mb-3" style="background-color: #000;">
-                <video id="video" autoplay playsinline style="width: 100%; height: auto;"></video>
+            <!-- Video Feed with text-focused overlay -->
+            <div id="video-container" class="border rounded shadow-sm mb-3" style="background-color: #f8f9fa;">
+                <video id="video" autoplay playsinline style="width: 100%; height: auto; display: block !important;"></video>
+                
+                <!-- Grid overlay for better alignment -->
+                <div id="grid-overlay">
+                    <div class="grid-line-horizontal" style="top: 33.33%;"></div>
+                    <div class="grid-line-horizontal" style="top: 66.66%;"></div>
+                    <div class="grid-line-vertical" style="left: 33.33%;"></div>
+                    <div class="grid-line-vertical" style="left: 66.66%;"></div>
+                </div>
+                
+                <!-- Main capture guide -->
+                <div id="capture-guide">
+                    <!-- UPDATED: Text guide updated for square -->
+                    <div id="text-guide">📝 SQUARE CAPTURE ZONE</div>
+                </div>
             </div>
             <canvas id="canvas" style="display:none;"></canvas>
 
-            <!-- Capture Button -->
-            <div class="d-grid gap-2 mb-3">
-                <button id="capture" class="btn btn-primary btn-lg">
-                    <span id="button-text">Capture and Sort</span>
-                    <span id="loading-spinner" class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display: none;"></span>
-                </button>
+            <!-- Action Buttons -->
+            <div class="row g-2 mb-3">
+                <div class="col">
+                    <!-- UPDATED: Button text updated for square capture -->
+                    <button id="capture" class="btn btn-primary btn-lg w-100">📸 Capture Text</button>
+                </div>
+                <div class="col">
+                    <button id="process-queue" class="btn btn-success btn-lg w-100" disabled>
+                        <span id="button-text">🔍 Process Queue</span>
+                        <span id="loading-spinner" class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display: none;"></span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Image Queue Area -->
+            <h5 class="mt-4">📋 Captured Images (<span id="queue-count">0</span>)</h5>
+            <div id="image-queue" class="d-flex flex-wrap gap-2 mb-3 border p-2 rounded bg-light" style="min-height: 110px;">
+                <!-- Captured image thumbnails will appear here -->
             </div>
 
             <!-- Results Area -->
             <div class="card shadow-sm">
-                <div class="card-header h5">
-                    Sorting Result
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">📊 Extracted Results</h5>
+                    <button id="clear-all-results" class="btn btn-sm btn-outline-danger" style="display: none;" onclick="clearAllResults()">
+                        🗑️ Clear All Results
+                    </button>
                 </div>
                 <div class="card-body">
                     <div id="result-area">
-                        The sorting result will appear here...
+                        Results will appear here after processing...
                     </div>
                 </div>
             </div>
@@ -42,85 +192,269 @@
 </div>
 {% endblock %}
 
-<!-- Add the custom JavaScript at the end of the content block -->
 {% block scripts %}
 <script>
+    // Element References
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
     const captureButton = document.getElementById('capture');
+    const processQueueButton = document.getElementById('process-queue');
     const buttonText = document.getElementById('button-text');
     const loadingSpinner = document.getElementById('loading-spinner');
     const resultArea = document.getElementById('result-area');
+    const imageQueueDiv = document.getElementById('image-queue');
+    const queueCountSpan = document.getElementById('queue-count');
+    const clearAllResultsBtn = document.getElementById('clear-all-results');
 
-    // Access the camera
+    // State
+    let capturedImagesData = [];
+    let processedResults = [];
+
+    // Setup Camera
     async function setupCamera() {
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ 
-                video: { facingMode: 'environment' } // Prefer the rear camera
-            });
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
             video.srcObject = stream;
+            video.play();
         } catch (err) {
-            console.error("Error accessing the camera: ", err);
-            resultArea.innerHTML = `<div class="alert alert-danger">Could not access the camera. Please ensure a camera is enabled and grant permission in your browser.</div>`;
+            resultArea.innerHTML = `<div class="alert alert-danger">Could not access camera. Please grant permission and refresh.</div>`;
+        }
+    }
+    setupCamera();
+
+    // Function to delete individual result
+    function deleteResult(index) {
+        const resultCard = document.getElementById(`result-card-${index}`);
+        if (resultCard) {
+            resultCard.style.transition = 'opacity 0.3s ease';
+            resultCard.style.opacity = '0';
+            setTimeout(() => {
+                resultCard.remove();
+                checkResultsEmpty();
+            }, 300);
         }
     }
 
-    // Call setupCamera when the page loads
-    window.addEventListener('load', setupCamera);
+    // Function to clear all results
+    function clearAllResults() {
+        if (confirm('Are you sure you want to clear all results?')) {
+            resultArea.innerHTML = 'Results will appear here after processing...';
+            clearAllResultsBtn.style.display = 'none';
+        }
+    }
 
-    captureButton.addEventListener('click', () => {
-        // Show loading state
-        buttonText.textContent = 'Processing...';
-        loadingSpinner.style.display = 'inline-block';
-        captureButton.disabled = true;
-        resultArea.innerHTML = 'Capturing image and processing...';
+    // Function to check if results area is empty and show/hide clear all button
+    function checkResultsEmpty() {
+        const resultCards = resultArea.querySelectorAll('[id^="result-card-"]');
+        if (resultCards.length === 0) {
+            resultArea.innerHTML = 'Results will appear here after processing...';
+            clearAllResultsBtn.style.display = 'none';
+        }
+    }
 
-        const context = canvas.getContext('2d');
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-        const imageDataURL = canvas.toDataURL('image/jpeg');
-
-        // Send image data to our new Flask backend route
-        fetch("{{ url_for('process_capture') }}", {
+    // Function to handle manual PIN code entry
+    function handleManualPincode(parcel_id, index) {
+        const pincodeInput = document.getElementById(`pincode-input-${index}`);
+        const pincode = pincodeInput.value.trim();
+        
+        if (!/^\d{6}$/.test(pincode)) {
+            alert("PIN code must be exactly 6 digits!");
+            pincodeInput.focus();
+            return;
+        }
+        
+        fetch("{{ url_for('update_pincode') }}", {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ image: imageDataURL })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ parcel_id: parcel_id, pincode: pincode })
         })
         .then(response => response.json())
         .then(data => {
-            // Display the results from the server
-            if (data.status === 'success') {
-                resultArea.innerHTML = `
-                    <div class="alert alert-success">
-                        <h4 class="alert-heading">Success!</h4>
-                        <p><strong>PIN Code Found:</strong> ${data.pin_code}</p>
-                        <p><strong>Assigned to Bin:</strong> ${data.bin_name}</p>
-                        <hr>
-                        <p class="mb-0">Full Extracted Text:</p>
-                        <pre><code>${data.full_text}</code></pre>
-                    </div>`;
+            if (data.success) {
+                const originalResult = processedResults[index];
+                const extractedText = originalResult ? originalResult.full_text : 'No text could be extracted.';
+                const errorCard = document.getElementById(`result-card-${index}`);
+                errorCard.className = 'alert alert-success position-relative';
+                errorCard.innerHTML = `
+                    <button type="button" class="btn-close position-absolute top-0 end-0 m-2" onclick="deleteResult(${index})" title="Delete this result"></button>
+                    <strong>Image ${index + 1}: Success! (Manual Entry)</strong><br>
+                    <strong>PIN Code:</strong> ${data.pincode}<br>
+                    <small class="text-muted">Parcel ID: ${parcel_id}</small><br>
+                    <details>
+                        <summary>Show Full Extracted Text</summary>
+                        <pre class="mt-2"><code>${extractedText}</code></pre>
+                    </details>
+                `;
             } else {
-                resultArea.innerHTML = `
-                    <div class="alert alert-danger">
-                        <h4 class="alert-heading">Error: ${data.error_type}</h4>
-                        <p>${data.message}</p>
-                        <hr>
-                        <p class="mb-0">Full Extracted Text:</p>
-                        <pre><code>${data.full_text || 'No text could be extracted.'}</code></pre>
-                    </div>`;
+                alert("Error updating PIN code: " + data.error);
             }
         })
         .catch(error => {
-            console.error('Error:', error);
-            resultArea.innerHTML = `<div class="alert alert-danger">An error occurred while communicating with the server. Check the console for details.</div>`;
+            alert("Error communicating with server");
+        });
+    }
+
+    // Update Image Queue UI
+    function updateQueueUI() {
+        imageQueueDiv.innerHTML = '';
+        capturedImagesData.forEach((imageDataURL, index) => {
+            const imageContainer = document.createElement('div');
+            imageContainer.style.position = 'relative';
+            imageContainer.style.display = 'inline-block';
+            imageContainer.style.margin = '5px';
+            
+            const img = document.createElement('img');
+            img.src = imageDataURL;
+            img.style.height = '100px';
+            img.style.borderRadius = '5px';
+            img.style.border = '2px solid #ddd';
+            img.style.display = 'block';
+            img.title = `Image ${index + 1}`;
+            
+            const removeBtn = document.createElement('button');
+            removeBtn.innerHTML = '×';
+            removeBtn.style.position = 'absolute';
+            removeBtn.style.top = '-5px';
+            removeBtn.style.right = '-5px';
+            removeBtn.style.width = '20px';
+            removeBtn.style.height = '20px';
+            removeBtn.style.borderRadius = '50%';
+            removeBtn.style.backgroundColor = '#dc3545';
+            removeBtn.style.color = 'white';
+            removeBtn.style.border = 'none';
+            removeBtn.style.fontSize = '12px';
+            removeBtn.style.cursor = 'pointer';
+            removeBtn.style.display = 'flex';
+            removeBtn.style.alignItems = 'center';
+            removeBtn.style.justifyContent = 'center';
+            removeBtn.title = `Remove Image ${index + 1}`;
+            
+            removeBtn.onmouseover = () => { removeBtn.style.backgroundColor = '#c82333'; };
+            removeBtn.onmouseout = () => { removeBtn.style.backgroundColor = '#dc3545'; };
+            removeBtn.onclick = (e) => {
+                e.stopPropagation();
+                capturedImagesData.splice(index, 1);
+                updateQueueUI();
+            };
+            
+            imageContainer.appendChild(img);
+            imageContainer.appendChild(removeBtn);
+            imageQueueDiv.appendChild(imageContainer);
+        });
+        queueCountSpan.textContent = capturedImagesData.length;
+        processQueueButton.disabled = capturedImagesData.length === 0;
+    }
+
+    // UPDATED: Capture Button Logic changed to Square Cropping
+    captureButton.addEventListener('click', () => {
+        if (video.readyState < 2) return;
+
+        const context = canvas.getContext('2d');
+        const videoWidth = video.videoWidth;
+        const videoHeight = video.videoHeight;
+        
+        // CHANGED: Square Cropping instead of Rectangle (50% x 50%)
+        // Calculate the smaller dimension to ensure we get a perfect square
+        const smallerDimension = Math.min(videoWidth, videoHeight);
+        const cropSize = smallerDimension * 0.5; // 50% of the smaller dimension
+        
+        // Center the square crop area
+        const sx = (videoWidth - cropSize) / 2;   // Center horizontally
+        const sy = (videoHeight - cropSize) / 2;  // Center vertically
+
+        // Set canvas to the square crop size
+        canvas.width = cropSize;
+        canvas.height = cropSize;
+
+        // Draw the cropped square portion of the video onto the canvas
+        context.drawImage(video, sx, sy, cropSize, cropSize, 0, 0, cropSize, cropSize);
+
+        const imageDataURL = canvas.toDataURL('image/jpeg', 0.9);
+        capturedImagesData.push(imageDataURL);
+        updateQueueUI();
+    });
+
+    // Process Queue Button Logic (unchanged)
+    processQueueButton.addEventListener('click', () => {
+        if (capturedImagesData.length === 0) return;
+
+        buttonText.textContent = 'Processing...';
+        loadingSpinner.style.display = 'inline-block';
+        processQueueButton.disabled = true;
+        captureButton.disabled = true;
+        
+        if (resultArea.innerHTML.includes('Results will appear here')) {
+            resultArea.innerHTML = '';
+        }
+
+        fetch("{{ url_for('process_queue') }}", {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ images: capturedImagesData })
+        })
+        .then(response => response.json())
+        .then(data => {
+            processedResults = data.results;
+            capturedImagesData = [];
+            updateQueueUI();
+
+            data.results.forEach((result, index) => {
+                let resultCard;
+                if (result.status === 'Success') {
+                    resultCard = `
+                        <div class="alert alert-success position-relative" id="result-card-${index}">
+                            <button type="button" class="btn-close position-absolute top-0 end-0 m-2" onclick="deleteResult(${index})" title="Delete this result"></button>
+                            <strong>📋 Image ${index + 1}: Success!</strong><br>
+                            <strong>📍 PIN Code Found:</strong> ${result.pin_code}<br>
+                            <small class="text-muted">Parcel ID: ${result.parcel_id}</small><br>
+                            <details>
+                                <summary>Show Full Extracted Text</summary>
+                                <pre class="mt-2"><code>${result.full_text}</code></pre>
+                            </details>
+                        </div>`;
+                } else {
+                    resultCard = `
+                        <div class="alert alert-warning position-relative" id="result-card-${index}">
+                            <button type="button" class="btn-close position-absolute top-0 end-0 m-2" onclick="deleteResult(${index})" title="Delete this result"></button>
+                            <strong>⚠️ Image ${index + 1}: No PIN Code Detected</strong><br>
+                            ${result.message}<br>
+                            <small class="text-muted">Parcel ID: ${result.parcel_id}</small><br>
+                            
+                            <div class="mt-3 p-3 bg-light border rounded">
+                                <label for="pincode-input-${index}" class="form-label"><strong>📝 Enter PIN Code Manually:</strong></label>
+                                <div class="input-group">
+                                    <input type="text" 
+                                           id="pincode-input-${index}" 
+                                           class="form-control" 
+                                           placeholder="6-digit PIN code" 
+                                           maxlength="6" 
+                                           pattern="[0-9]{6}"
+                                           onkeypress="if(event.key==='Enter') handleManualPincode(${result.parcel_id}, ${index})">
+                                    <button class="btn btn-primary" 
+                                            type="button" 
+                                            onclick="handleManualPincode(${result.parcel_id}, ${index})">
+                                        OK
+                                    </button>
+                                </div>
+                                <small class="text-muted">Press Enter or click OK to submit</small>
+                            </div>
+                            
+                            <details class="mt-3">
+                                <summary>Show Full Extracted Text</summary>
+                                <pre class="mt-2"><code>${result.full_text || 'No text could be extracted.'}</code></pre>
+                            </details>
+                        </div>`;
+                }
+                resultArea.innerHTML += resultCard;
+            });
+            
+            clearAllResultsBtn.style.display = 'inline-block';
+        })
+        .catch(error => {
+            resultArea.innerHTML = `<div class="alert alert-danger">Server communication error.</div>`;
         })
         .finally(() => {
-            // Restore button to original state
-            buttonText.textContent = 'Capture and Sort';
+            buttonText.textContent = '🔍 Process Queue';
             loadingSpinner.style.display = 'none';
             captureButton.disabled = false;
         });

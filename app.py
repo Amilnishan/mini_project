@@ -73,6 +73,7 @@ def login():
             session['user_id'] = user['user_id']
             session['username'] = user['username']
             session['role'] = user['role']
+            session['staff_id'] = user['staff_id']  # Store staff_id if available
             
             # Redirect to the appropriate dashboard based on role
             if user['role'] == 'admin':
@@ -237,7 +238,7 @@ def staff_dashboard():
     if 'loggedin' in session and session['role'] == 'staff':
         return render_template('staff_dashboard.html', username=session['username'])
     # If not logged in or not staff, redirect to login
-    return redirect(url_for('login'))
+    return redirect(url_for('login'))  
 
 def find_pincode(text):
     """Uses regex to find a 6-digit number in the given text."""
@@ -249,6 +250,7 @@ def find_pincode(text):
     return None
 
 
+# This function shows the page with the new "queue" UI
 @app.route("/staff/capture")
 def capture_page():
     """Renders the live capture page for staff."""
@@ -257,107 +259,153 @@ def capture_page():
     return render_template('live_capture.html')
 
 
-@app.route('/staff/process_capture', methods=['POST'])
-def process_capture():
-    """Receives an image, performs OCR, finds pincode, and logs it."""
+# This function processes the queue of images
+@app.route('/staff/process_queue', methods=['POST'])
+def process_queue():
+    """Receives a list of images, performs OCR on each, saves to database, and returns a list of results."""
     if 'loggedin' not in session or session['role'] != 'staff':
         return jsonify({'error': 'Authentication required'}), 401
 
-    conn = None
     try:
-        # --- 1. Receive and Decode the Image ---
         data = request.get_json()
-        image_data = data['image'].split(',')[1]
-        decoded_image = base64.b64decode(image_data)
-        np_arr = np.frombuffer(decoded_image, np.uint8)
-        img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
-
-        # --- 2. Image Preprocessing ---
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        blurred = cv2.medianBlur(gray, 3)
-        # Adaptive thresholding is generally good for varied lighting
-        thresh = cv2.adaptiveThreshold(
-            blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 11, 4
-        )
-
-        # --- 3. OCR and Pincode Extraction ---
-        custom_config = r'--oem 3 --psm 6'
-        full_text = pytesseract.image_to_string(thresh, config=custom_config)
-        pin_code = find_pincode(full_text)
-
-        # --- 4. Database Interaction ---
+        image_data_urls = data.get('images', [])
+        results = []
+        
+        # Get database connection
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
-        staff_id = session.get('staff_id') # Get staff_id from the session
-
-        # First, create a record for the parcel being processed
-        # For simplicity, we'll use a placeholder for the image path
-        cursor.execute(
-            "INSERT INTO Parcel (image_path, status, staff_id) VALUES (%s, %s, %s)",
-            ('live_capture.jpg', 'Processing', staff_id)
-        )
-        parcel_id = cursor.lastrowid
         
-        if not pin_code:
-            # Log the error
-            cursor.execute(
-                "INSERT INTO Error_Logs (parcel_id, error_type) VALUES (%s, %s)",
-                (parcel_id, 'PIN Not Found')
+        # Get the correct staff_id from the Login table using session user_id
+        login_user_id = session.get('user_id')  # This is the user_id from Login table
+        cursor.execute("SELECT staff_id FROM Login WHERE user_id = %s", (login_user_id,))
+        user_record = cursor.fetchone()
+        
+        if not user_record or not user_record['staff_id']:
+            return jsonify({'error': 'Staff ID not found'}), 400
+            
+        staff_id = user_record['staff_id']
+
+        for index, image_data_url in enumerate(image_data_urls):
+            # --- 1. Decode each image ---
+            image_data = image_data_url.split(',')[1]
+            decoded_image = base64.b64decode(image_data)
+            np_arr = np.frombuffer(decoded_image, np.uint8)
+            img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+
+            # --- 2. Save image to static folder ---
+            import time
+            timestamp = int(time.time())
+            image_filename = f"parcel_{staff_id}_{timestamp}_{index}.jpg"
+            image_path = os.path.join('static', 'uploaded_parcels', image_filename)
+            
+            # Create directory if it doesn't exist
+            os.makedirs(os.path.dirname(image_path), exist_ok=True)
+            
+            # Save the image
+            cv2.imwrite(image_path, img)
+
+            # --- 3. Image Preprocessing ---
+            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            blurred = cv2.medianBlur(gray, 3)
+            thresh = cv2.adaptiveThreshold(
+                blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 11, 4
             )
-            conn.commit()
-            return jsonify({
-                'status': 'error',
-                'error_type': 'PIN Not Found',
-                'message': 'A 6-digit PIN code could not be identified in the text.',
-                'full_text': full_text
-            })
 
-        # If PIN is found, look for the bin
-        cursor.execute("SELECT bin_id, bin_name FROM Bin WHERE pin = %s", (pin_code,))
-        bin_record = cursor.fetchone()
+            # --- 4. OCR and Pincode Extraction ---
+            custom_config = r'--oem 3 --psm 6'
+            full_text = pytesseract.image_to_string(thresh, config=custom_config)
+            pin_code = find_pincode(full_text)
+            
+            # --- 5. Determine status based on OCR result ---
+            if pin_code:
+                status = 'Processed'
+                result = {
+                    'status': 'Success',
+                    'pin_code': pin_code,
+                    'full_text': full_text.strip(),
+                    'parcel_id': None  # Will be set after database insertion
+                }
+            else:
+                status = 'Failed'
+                result = {
+                    'status': 'Error',
+                    'message': 'A 6-digit PIN code could not be identified.',
+                    'full_text': full_text.strip(),
+                    'parcel_id': None  # Will be set after database insertion
+                }
+            
+            # --- 6. Insert into database ---
+            try:
+                cursor.execute("""
+                    INSERT INTO Parcel (image_path, STATUS, staff_id) 
+                    VALUES (%s, %s, %s)
+                """, (image_path, status, staff_id))
+                
+                parcel_id = cursor.lastrowid
+                result['parcel_id'] = parcel_id
+                
+                conn.commit()
+                
+            except mysql.connector.Error as db_err:
+                # If database insert fails, still return the OCR result but log the error
+                result['db_error'] = f"Database error: {str(db_err)}"
+                print(f"Database error for image {index}: {db_err}")
+            
+            results.append(result)
 
-        if not bin_record:
-            # Log the error
-            cursor.execute(
-                "INSERT INTO Error_Logs (parcel_id, error_type) VALUES (%s, %s)",
-                (parcel_id, 'Bin Not Mapped')
-            )
-            conn.commit()
-            return jsonify({
-                'status': 'error',
-                'error_type': 'Bin Not Mapped',
-                'message': f'PIN code {pin_code} was found, but it is not mapped to any bin.',
-                'full_text': full_text
-            })
-
-        # --- 5. Success: Log the Sorted Item ---
-        bin_id = bin_record['bin_id']
-        bin_name = bin_record['bin_name']
+        cursor.close()
+        conn.close()
         
-        # Log to Sorted_Item table
-        cursor.execute(
-            "INSERT INTO Sorted_Item (parcel_id, staff_id, bin_id) VALUES (%s, %s, %s)",
-            (parcel_id, staff_id, bin_id)
-        )
-        # Update parcel status
-        cursor.execute("UPDATE Parcel SET status = 'Sorted' WHERE parcel_id = %s", (parcel_id,))
-        
-        conn.commit()
-        
-        return jsonify({
-            'status': 'success',
-            'pin_code': pin_code,
-            'bin_name': bin_name,
-            'full_text': full_text
-        })
+        return jsonify({'results': results})
 
     except Exception as e:
-        # Log any unexpected server error
-        return jsonify({'status': 'error', 'error_type': 'Server Error', 'message': str(e)})
-    finally:
-        if conn and conn.is_connected():
-            cursor.close()
-            conn.close()
+        return jsonify({'error': 'An unexpected server error occurred.', 'details': str(e)}), 500
+
+# Add a new route for manual PIN code entry
+@app.route('/staff/update_pincode', methods=['POST'])
+def update_pincode():
+    """Updates a parcel with manually entered PIN code."""
+    if 'loggedin' not in session or session['role'] != 'staff':
+        return jsonify({'error': 'Authentication required'}), 401
+
+    try:
+        data = request.get_json()
+        parcel_id = data.get('parcel_id')
+        manual_pincode = data.get('pincode')
+        
+        # Validate PIN code format (6 digits)
+        if not re.match(r'^\d{6}$', manual_pincode):
+            return jsonify({'error': 'PIN code must be exactly 6 digits'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        # Get the current parcel data to retrieve the extracted text
+        cursor.execute("SELECT * FROM Parcel WHERE parcel_id = %s", (parcel_id,))
+        parcel = cursor.fetchone()
+        
+        if not parcel:
+            return jsonify({'error': 'Parcel not found'}), 404
+        
+        # Update the parcel status
+        cursor.execute("""
+            UPDATE Parcel 
+            SET STATUS = 'Processed' 
+            WHERE parcel_id = %s
+        """, (parcel_id,))
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            'success': True, 
+            'pincode': manual_pincode,
+            'parcel_id': parcel_id
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0',port='5000',debug=True)

@@ -91,5 +91,9 @@ body {
   background-color: white;
 }
 
-
+#video-container {
+    position: relative;
+    clear: both;
+    float: none;
+}
 
