@@ -1,0 +1,60 @@
+<div class="modal-header">
+  <h5 class="modal-title"><i class="fas fa-box"></i> {{ bin_info.bin_name }} <small class="text-muted">(PIN {{ bin_info.pin }})</small></h5>
+  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+</div>
+<div class="modal-body p-0">
+  {% if bin_contents %}
+  <div class="table-responsive">
+    <table class="table table-sm table-striped mb-0 align-middle">
+      <thead class="table-dark small">
+        <tr>
+          <th>#</th>
+          <th>Parcel ID</th>
+          <th>Address</th>
+          <th>PIN</th>
+          <th>Captured</th>
+          <th>Sorted</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in bin_contents %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          <td>{{ item.parcel_id }}</td>
+          <td style="max-width:260px;">
+            {% if item.extracted_address %}
+              <div class="address-short" id="addr-short-{{ loop.index }}">{{ item.extracted_address[:80] }}{% if item.extracted_address|length > 80 %}... <a href="#" class="toggle-address small" data-target="{{ loop.index }}" role="button">more</a>{% endif %}</div>
+              {% if item.extracted_address|length > 80 %}
+              <div class="address-full d-none" id="addr-full-{{ loop.index }}">{{ item.extracted_address }} <a href="#" class="toggle-address small" data-target="{{ loop.index }}" role="button">less</a></div>
+              {% endif %}
+            {% else %}<span class="text-muted">(none)</span>{% endif %}
+          </td>
+          <td><span class="badge bg-primary">{{ item.pin }}</span></td>
+          <td><small class="text-muted">{{ item.upload_time.strftime('%Y-%m-%d %H:%M') if item.upload_time else 'N/A' }}</small></td>
+          <td><small class="text-success">{{ item.sorted_time.strftime('%Y-%m-%d %H:%M') if item.sorted_time else 'N/A' }}</small></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    <div class="p-4 text-center text-muted">
+      <i class="fas fa-box-open fa-2x mb-2"></i>
+      <div>No items in this bin.</div>
+    </div>
+  {% endif %}
+</div>
+<div class="modal-footer justify-content-between">
+  <div>
+    <span class="small text-muted">Total: {{ bin_contents|length }} items</span>
+  </div>
+  <div>
+    {% if bin_info.bin_name != 'Error Bin' %}
+    <!-- Download PDF button (hidden for Error Bin) -->
+    <a href="{{ url_for('download_bin_pdf', bin_id=bin_info.bin_id) }}" class="btn btn-success btn-sm" target="_blank">
+        <i class="fas fa-file-pdf me-1"></i> Download as PDF
+    </a>
+    {% endif %}
+    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+  </div>
+</div>

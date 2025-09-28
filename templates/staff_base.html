@@ -27,8 +27,8 @@
       <div class="d-flex align-items-center gap-2">
         <a class="btn btn-outline-primary staff-nav-btn" href="{{ url_for('staff_dashboard') }}">Home</a>
         <a class="btn btn-outline-success staff-nav-btn" href="{{ url_for('capture_page') }}">Capture Image</a>
-        <a class="btn btn-outline-info staff-nav-btn" href="#">View Bins</a>
-        <a class="btn btn-outline-warning staff-nav-btn" href="#">View Sorted Items</a>
+        <a class="btn btn-outline-info staff-nav-btn" href="{{ url_for('view_bins') }}">View Bins</a>
+        <a class="btn btn-outline-warning staff-nav-btn" href="{{ url_for('view_sorted_history') }}">View Sorted Items</a>
         <a class="btn btn-primary text-white" href="{{ url_for('logout') }}">Logout</a>
       </div>
   <style>
@@ -63,7 +63,7 @@
   <div class="container mt-4">
     {% block content %}{% endblock %}
   </div>
-    {% block scripts %}{% endblock %}
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  {% block scripts %}{% endblock %}
 </body>
 </html>

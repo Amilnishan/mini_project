@@ -15,11 +15,17 @@
           <div class="mb-3">
             <label for="staff_name" class="form-label">Full Name</label>
             <!-- Pre-fill the value with the staff member's current name -->
-            <input type="text" class="form-control" id="staff_name" name="staff_name" value="{{ staff.staff_name }}" required>
+            <input type="text" class="form-control" id="staff_name" name="staff_name" value="{{ staff.staff_name }}" required pattern="[A-Za-z\s]{3,}" title="Full name must contain at least 3 alphabetic characters.">
+            <div id="name-error" class="invalid-feedback" style="display:none;">
+              Full name must contain at least 3 alphabetic characters.
+            </div>
           </div>
           <div class="mb-3">
             <label for="phone" class="form-label">Phone Number</label>
-            <input type="tel" class="form-control" id="phone" name="phone" value="{{ staff.phone }}" required>
+            <input type="tel" class="form-control" id="phone" name="phone" value="{{ staff.phone }}" required pattern="\d{10}" title="Phone number must be 10 digits.">
+            <div id="phone-error" class="invalid-feedback" style="display:none;">
+              Phone number must be 10 digits.
+            </div>
           </div>
           <hr>
           <div class="mb-3">
@@ -48,4 +54,55 @@
     </div>
   </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const phoneInput = document.getElementById('phone');
+    const nameInput = document.getElementById('staff_name');
+    const editForm = document.querySelector('form');
+    const phoneError = document.getElementById('phone-error');
+    const nameError = document.getElementById('name-error');
+
+    function validatePhone() {
+        const phoneValue = phoneInput.value;
+        // Validates if the phone number is 10 digits.
+        if (/^\d{10}$/.test(phoneValue)) {
+            phoneInput.classList.remove('is-invalid');
+            phoneError.style.display = 'none';
+            return true;
+        } else {
+            phoneInput.classList.add('is-invalid');
+            phoneError.style.display = 'block';
+            return false;
+        }
+    }
+
+    function validateName() {
+        const nameValue = nameInput.value.trim();
+        // Validates if the name contains at least 3 alphabetic characters
+        const alphabeticCount = (nameValue.match(/[A-Za-z]/g) || []).length;
+        if (alphabeticCount >= 3) {
+            nameInput.classList.remove('is-invalid');
+            nameError.style.display = 'none';
+            return true;
+        } else {
+            nameInput.classList.add('is-invalid');
+            nameError.style.display = 'block';
+            return false;
+        }
+    }
+
+    phoneInput.addEventListener('input', validatePhone);
+    nameInput.addEventListener('input', validateName);
+
+    editForm.addEventListener('submit', function(e) {
+        const isPhoneValid = validatePhone();
+        const isNameValid = validateName();
+        
+        if (!isPhoneValid || !isNameValid) {
+            e.preventDefault(); // Prevent form submission if validation fails
+        }
+    });
+});
+</script>
 {% endblock %}

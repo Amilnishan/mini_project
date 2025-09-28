@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sorted Items - Postal Sorting System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('staff_dashboard') }}">
+                <img src="{{ url_for('static', filename='images/icon.jpg') }}" alt="Logo" width="30" height="30" class="d-inline-block align-top me-2">
+                Postal Sorting System
+            </a>
+            <div class="navbar-nav ms-auto">
+                <span class="navbar-text me-3">Welcome, {{ username }}!</span>
+                <a class="nav-link" href="{{ url_for('logout') }}">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- Header with Back Button -->
+        <div class="row mb-4">
+            <div class="col">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2><i class="fas fa-box-open"></i> Sorted Items</h2>
+                        <p class="text-muted">View all parcels you have sorted into bins</p>
+                    </div>
+                    <a href="{{ url_for('staff_dashboard') }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- Sorted Items Table -->
+        {% if sorted_items %}
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-check-circle"></i> Sorted Items ({{ sorted_items|length }})</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover mb-0">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Sort ID</th>
+                                    <th>Parcel ID</th>
+                                    <th>Bin Name</th>
+                                    <th>PIN Code</th>
+                                    <th>Captured</th>
+                                    <th>Sorted</th>
+                                    <th>Image</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in sorted_items %}
+                                    <tr>
+                                        <td>
+                                            <span class="badge bg-success">#{{ item.sort_id }}</span>
+                                        </td>
+                                        <td>
+                                            <strong>{{ item.parcel_id }}</strong>
+                                        </td>
+                                        <td>
+                                            <i class="fas fa-box"></i> {{ item.bin_name }}
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-primary">{{ item.pin }}</span>
+                                        </td>
+                                        <td>
+                                            <small class="text-muted">{{ item.upload_time.strftime('%Y-%m-%d %H:%M') }}</small>
+                                        </td>
+                                        <td>
+                                            <small class="text-success">{{ item.sorted_time.strftime('%Y-%m-%d %H:%M') }}</small>
+                                        </td>
+                                        <td>
+                                            {% if item.image_path %}
+                                                <a href="{{ url_for('static', filename=item.image_path.replace('static/', '')) }}" 
+                                                   target="_blank" class="btn btn-sm btn-outline-primary">
+                                                    <i class="fas fa-image"></i> View
+                                                </a>
+                                            {% else %}
+                                                <span class="text-muted">No image</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-box-open fa-4x text-muted mb-3"></i>
+                <h4 class="text-muted">No sorted items yet</h4>
+                <p class="text-muted">Capture and sort some parcels to see them listed here.</p>
+                <a href="{{ url_for('capture_page') }}" class="btn btn-primary">
+                    <i class="fas fa-camera"></i> Start Capturing
+                </a>
+            </div>
+        {% endif %}
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

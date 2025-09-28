@@ -2,14 +2,342 @@
 {% extends "admin_base.html" %}
 
 <!-- Set the title for this specific page -->
-{% block title %}Admin Home{% endblock %}
+{% block title %}Admin Dashboard{% endblock %}
 
 <!-- This is the main content for the page -->
 {% block content %}
-  <div class="p-5 mb-4 admin-animated-bg text-center">
-    <div class="container-fluid py-5">
-      <h1 class="display-5 fw-bold">Welcome, {{ session.username if session.username else 'Admin' }}!</h1>
-      <p class="fs-4">This is the central hub for all management functions. Use the navigation bar above to manage staff or view sorting history.</p>
+<div class="container-fluid">
+  <!-- Welcome Hero Section -->
+  <div class="p-5 mb-4 admin-animated-bg text-center text-white">
+    <div class="container-fluid py-4">
+      <div class="row align-items-center">
+        <div class="col-lg-8 mx-auto">
+          <i class="fas fa-crown mb-3" style="font-size: 3rem; opacity: 0.9;"></i>
+          <h1 class="display-4 fw-bold mb-3">Welcome Back, {{ session.username if session.username else 'Admin' }}!</h1>
+          <p class="fs-5 mb-4 opacity-90">Administrative Dashboard - Manage your postal sorting operations with ease</p>
+          <div class="d-flex justify-content-center gap-3 flex-wrap">
+            <span class="badge bg-light text-dark px-3 py-2 fs-6">
+              <i class="fas fa-shield-alt me-2"></i>Administrator Access
+            </span>
+            <span class="badge bg-light text-dark px-3 py-2 fs-6">
+              <i class="fas fa-clock me-2"></i><span id="currentDate">Loading...</span>
+            </span>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
+
+  <!-- Quick Stats Cards -->
+  <div class="row mb-5 justify-content-center">
+    <div class="col-lg-6 col-md-6 mb-4">
+      <div class="card border-0 shadow-sm h-100 dashboard-stat-card">
+        <div class="card-body text-center p-4">
+          <div class="stat-icon bg-primary mb-3">
+            <i class="fas fa-users text-white"></i>
+          </div>
+          <h3 class="fw-bold text-primary mb-2">Staff Management</h3>
+          <p class="text-muted mb-3">Manage staff accounts, permissions, and monitoring</p>
+          <a href="{{ url_for('manage_staff') }}" class="btn btn-primary btn-sm px-4">
+            <i class="fas fa-cog me-2"></i>Manage Staff
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-6 col-md-6 mb-4">
+      <div class="card border-0 shadow-sm h-100 dashboard-stat-card">
+        <div class="card-body text-center p-4">
+          <div class="stat-icon bg-success mb-3">
+            <i class="fas fa-chart-line text-white"></i>
+          </div>
+          <h3 class="fw-bold text-success mb-2">Analytics</h3>
+          <p class="text-muted mb-3">View processing statistics and performance metrics</p>
+          <a href="{{ url_for('admin_history') }}" class="btn btn-success btn-sm px-4">
+            <i class="fas fa-chart-bar me-2"></i>View Reports
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Action Cards -->
+  <div class="row">
+    <div class="col-lg-8">
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-gradient-primary text-white">
+          <h5 class="mb-0"><i class="fas fa-tachometer-alt me-2"></i>System Overview</h5>
+        </div>
+        <div class="card-body">
+          <div class="row text-center">
+            <div class="col-md-4 mb-3">
+              <div class="overview-item">
+                <i class="fas fa-mail-bulk text-primary mb-2" style="font-size: 2rem;"></i>
+                <h4 class="fw-bold">Postal Sorting</h4>
+                <p class="text-muted">AI-powered OCR system for automated mail processing</p>
+              </div>
+            </div>
+            <div class="col-md-4 mb-3">
+              <div class="overview-item">
+                <i class="fas fa-users-cog text-success mb-2" style="font-size: 2rem;"></i>
+                <h4 class="fw-bold">Staff Control</h4>
+                <p class="text-muted">Complete staff management and access control</p>
+              </div>
+            </div>
+            <div class="col-md-4 mb-3">
+              <div class="overview-item">
+                <i class="fas fa-shield-alt text-warning mb-2" style="font-size: 2rem;"></i>
+                <h4 class="fw-bold">Secure Access</h4>
+                <p class="text-muted">Role-based authentication and data protection</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-4">
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-gradient-success text-white">
+          <h5 class="mb-0"><i class="fas fa-rocket me-2"></i>Quick Actions</h5>
+        </div>
+        <div class="card-body">
+          <div class="d-grid gap-3">
+            <button class="btn btn-outline-primary d-flex align-items-center" data-bs-toggle="modal" data-bs-target="#addStaffModal">
+              <i class="fas fa-user-plus me-3"></i>
+              <div class="text-start">
+                <div class="fw-bold">Add New Staff</div>
+                <small class="text-muted">Create staff account</small>
+              </div>
+            </button>
+            
+            <a href="{{ url_for('admin_history') }}" class="btn btn-outline-success d-flex align-items-center">
+              <i class="fas fa-chart-pie me-3"></i>
+              <div class="text-start">
+                <div class="fw-bold">View Reports</div>
+                <small class="text-muted">System analytics</small>
+              </div>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- System Status -->
+  <div class="row">
+    <div class="col-12">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-gradient-dark text-white">
+          <h5 class="mb-0"><i class="fas fa-heartbeat me-2"></i>System Status</h5>
+        </div>
+        <div class="card-body">
+          <div class="row text-center">
+            <div class="col-lg-3 col-md-6 mb-3">
+              <div class="status-item">
+                <i class="fas fa-check-circle text-success mb-2" style="font-size: 2rem;"></i>
+                <h6 class="fw-bold">Database</h6>
+                <span class="badge bg-success">Online</span>
+              </div>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-3">
+              <div class="status-item">
+                <i class="fas fa-check-circle text-success mb-2" style="font-size: 2rem;"></i>
+                <h6 class="fw-bold">OCR Engine</h6>
+                <span class="badge bg-success">Active</span>
+              </div>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-3">
+              <div class="status-item">
+                <i class="fas fa-check-circle text-success mb-2" style="font-size: 2rem;"></i>
+                <h6 class="fw-bold">Security</h6>
+                <span class="badge bg-success">Protected</span>
+              </div>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-3">
+              <div class="status-item">
+                <i class="fas fa-check-circle text-success mb-2" style="font-size: 2rem;"></i>
+                <h6 class="fw-bold">System Health</h6>
+                <span class="badge bg-success">Optimal</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal for Adding New Staff -->
+<div class="modal fade" id="addStaffModal" tabindex="-1" aria-labelledby="addStaffModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="addStaffModalLabel">Add New Staff Member</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="POST" action="{{ url_for('manage_staff') }}" id="staff-form">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label for="staff_name" class="form-label">Full Name</label>
+            <input type="text" class="form-control" id="staff_name" name="staff_name" required pattern="[A-Za-z\s]{3,}" title="Full name must contain at least 3 alphabetic characters.">
+            <div class="invalid-feedback" id="name-error" style="display:none;">
+              Full name must contain at least 3 alphabetic characters.
+            </div>
+          </div>
+          <div class="mb-3">
+            <label for="phone" class="form-label">Phone Number</label>
+            <input type="tel" class="form-control" id="phone" name="phone" required pattern="\d{10}" title="Phone number must be 10 digits.">
+            <div class="invalid-feedback" id="phone-error" style="display:none;">
+              Phone number must be 10 digits.
+            </div>
+          </div>
+          <hr>
+          <div class="mb-3">
+            <label for="username" class="form-label">Username</label>
+            <input type="text" class="form-control" id="username" name="username" required>
+          </div>
+          <div class="mb-3">
+            <label for="password" class="form-label">Password</label>
+            <input type="password" class="form-control" id="password" name="password" required>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          <button type="submit" class="btn btn-primary">Add Staff</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<style>
+.dashboard-stat-card {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  border-radius: 12px;
+}
+
+.dashboard-stat-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 25px rgba(0,0,0,0.1) !important;
+}
+
+.stat-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+  font-size: 1.5rem;
+}
+
+.bg-gradient-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.bg-gradient-success {
+  background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+}
+
+.bg-gradient-dark {
+  background: linear-gradient(135deg, #434343 0%, #000000 100%);
+}
+
+.overview-item, .status-item {
+  padding: 1rem;
+  border-radius: 8px;
+  transition: background-color 0.3s ease;
+}
+
+.overview-item:hover, .status-item:hover {
+  background-color: rgba(0,0,0,0.03);
+}
+
+.card {
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.btn {
+  border-radius: 8px;
+}
+</style>
+
+<script>
+// Display current date
+document.addEventListener('DOMContentLoaded', function() {
+    const currentDateElement = document.getElementById('currentDate');
+    const now = new Date();
+    
+    // Format the date as "Month DD, YYYY"
+    const options = { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+    };
+    
+    const formattedDate = now.toLocaleDateString('en-US', options);
+    currentDateElement.textContent = formattedDate;
+
+    // Staff form validation
+    const phoneInput = document.getElementById('phone');
+    const nameInput = document.getElementById('staff_name');
+    const staffForm = document.getElementById('staff-form');
+    const phoneError = document.getElementById('phone-error');
+    const nameError = document.getElementById('name-error');
+
+    function validatePhone() {
+        const phoneValue = phoneInput.value;
+        // Validates if the phone number is 10 digits.
+        if (/^\d{10}$/.test(phoneValue)) {
+            phoneInput.classList.remove('is-invalid');
+            phoneError.style.display = 'none';
+            return true;
+        } else {
+            phoneInput.classList.add('is-invalid');
+            phoneError.style.display = 'block';
+            return false;
+        }
+    }
+
+    function validateName() {
+        const nameValue = nameInput.value.trim();
+        // Validates if the name contains at least 3 alphabetic characters
+        const alphabeticCount = (nameValue.match(/[A-Za-z]/g) || []).length;
+        if (alphabeticCount >= 3) {
+            nameInput.classList.remove('is-invalid');
+            nameError.style.display = 'none';
+            return true;
+        } else {
+            nameInput.classList.add('is-invalid');
+            nameError.style.display = 'block';
+            return false;
+        }
+    }
+
+    phoneInput.addEventListener('input', validatePhone);
+    nameInput.addEventListener('input', validateName);
+
+    staffForm.addEventListener('submit', function(e) {
+        const isPhoneValid = validatePhone();
+        const isNameValid = validateName();
+        
+        if (!isPhoneValid || !isNameValid) {
+            e.preventDefault(); // Prevent form submission if validation fails
+        }
+    });
+
+    // Clear form when modal is hidden
+    document.getElementById('addStaffModal').addEventListener('hidden.bs.modal', function () {
+        staffForm.reset();
+        // Clear any validation states
+        phoneInput.classList.remove('is-invalid');
+        nameInput.classList.remove('is-invalid');
+        phoneError.style.display = 'none';
+        nameError.style.display = 'none';
+    });
+});
+</script>
 {% endblock %}

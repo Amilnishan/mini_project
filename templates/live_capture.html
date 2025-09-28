@@ -3,87 +3,93 @@
 {% block title %}Live Capture & Sort{% endblock %}
 
 {% block content %}
-<!-- CSS for the text capture guide overlay -->
+<!-- Enhanced CSS for better OCR capture -->
 <style>
     #video-container {
         position: relative;
+        background: #000;
+        border-radius: 15px;
+        overflow: hidden;
     }
 
     #capture-guide {
         position: absolute;
-        /* CHANGED: Square dimensions instead of rectangle (80% x 45%) */
-        width: 50%;  /* Reduced from 80% to 50% for smaller square */
-        height: 50%; /* Changed from 45% to 50% to match width - creates perfect square */
-        box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.3); /* Much lighter overlay - changed from 0.6 to 0.3 */
+        /* More focused area to reduce noise */
+        width: 60%;  /* Reduced from 70% */
+        height: 30%; /* Reduced from 35% */
+        box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.8); /* Darker overlay */
         
-        /* Define the size and look of the transparent window */
-        border: 3px solid #00ff00; /* Bright green border */
-        border-style: dashed; /* Dashed border for text focus indication */
+        border: 3px solid #00ff00;
+        border-style: solid; /* Solid border for clearer boundaries */
         box-sizing: border-box;
         
-        /* Center the transparent window */
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
-        pointer-events: none; /* Make it so you can't click on the overlay */
+        pointer-events: none;
         z-index: 10;
     }
 
-    /* UPDATED: Corner guides adjusted for square shape */
+    /* Enhanced corner guides */
     #capture-guide::before,
     #capture-guide::after {
         content: '';
         position: absolute;
-        width: 15px;  /* Reduced from 20px to 15px for smaller square */
-        height: 15px; /* Reduced from 20px to 15px for smaller square */
-        border: 3px solid #ffff00; /* Yellow corners for better visibility */
+        width: 20px;
+        height: 20px;
+        border: 4px solid #ffff00;
     }
 
     #capture-guide::before {
-        top: -3px;
-        left: -3px;
+        top: -4px;
+        left: -4px;
         border-right: none;
         border-bottom: none;
     }
 
     #capture-guide::after {
-        bottom: -3px;
-        right: -3px;
+        bottom: -4px;
+        right: -4px;
         border-left: none;
         border-top: none;
     }
 
-    /* UPDATED: Text guidance updated for square capture */
+    /* Update text guide */
     #text-guide {
         position: absolute;
-        top: -40px;
+        top: -45px;
         left: 50%;
         transform: translateX(-50%);
-        background: rgba(0, 255, 0, 0.9);
+        background: linear-gradient(135deg, #00ff00 0%, #00cc00 100%);
         color: white;
-        padding: 5px 15px;
-        border-radius: 15px;
-        font-size: 14px;
+        padding: 8px 20px;
+        border-radius: 20px;
+        font-size: 13px;
         font-weight: bold;
         white-space: nowrap;
         pointer-events: none;
         z-index: 11;
+        box-shadow: 0 4px 15px rgba(0, 255, 0, 0.3);
     }
 
-    /* Ensure buttons are clickable */
-    .btn {
-        position: relative;
-        z-index: 20;
-        pointer-events: auto;
+    /* Camera quality indicators */
+    .quality-indicator {
+        position: absolute;
+        top: 15px;
+        left: 15px;
+        background: rgba(0, 0, 0, 0.7);
+        color: white;
+        padding: 8px 12px;
+        border-radius: 8px;
+        font-size: 12px;
+        z-index: 15;
     }
 
-    /* Ensure video container doesn't interfere with button clicks */
-    #video-container {
-        z-index: 1;
-        background-color: #f8f9fa !important; /* Light background instead of black */
-    }
+    .quality-good { color: #00ff00; }
+    .quality-fair { color: #ffff00; }
+    .quality-poor { color: #ff0000; }
 
-    /* UPDATED: Grid lines adjusted for square overlay */
+    /* Enhanced grid overlay */
     #grid-overlay {
         position: absolute;
         top: 0;
@@ -98,7 +104,7 @@
         position: absolute;
         width: 100%;
         height: 1px;
-        background: rgba(255, 255, 0, 0.3); /* Reduced opacity for less distraction */
+        background: rgba(255, 255, 0, 0.4);
         left: 0;
     }
 
@@ -106,68 +112,144 @@
         position: absolute;
         height: 100%;
         width: 1px;
-        background: rgba(255, 255, 0, 0.3); /* Reduced opacity for less distraction */
+        background: rgba(255, 255, 0, 0.4);
         top: 0;
     }
 
-    /* Ensure page background is normal */
-    body {
-        background-color: #ffffff !important;
+    /* Ensure buttons are clickable */
+    .btn {
+        position: relative;
+        z-index: 20;
+        pointer-events: auto;
     }
 
-    .container {
-        background-color: #ffffff;
+    #video-container {
+        z-index: 1;
+    }
+
+    /* Enhanced capture tips */
+    .capture-tips {
+        background: linear-gradient(135deg, #17a2b8, #007bff);
+        color: white;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+
+    .tip-item {
+        display: flex;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+
+    .tip-icon {
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 15px;
+        font-size: 14px;
     }
 </style>
 
 <div class="container">
+    <!-- Custom Alert Container -->
+    <div id="custom-alert-container" style="position: fixed; top: 20px; right: 20px; z-index: 1050; max-width: 400px;"></div>
+    
     <div class="row justify-content-center">
         <div class="col-lg-8">
             <div class="text-center mb-4">
-                <h2 class="fw-bold">Live Postal Sorting</h2>
-                <!-- UPDATED: Instructions changed for square capture -->
-                <p class="lead">Position the address/PIN code inside the green square and capture.</p>
-                <div class="alert alert-info">
-                    <small><strong>📋 Text Capture Tips:</strong> Keep your hands outside the green square. Ensure good lighting and align text within the square frame.</small>
+                <h2 class="fw-bold">Enhanced OCR Postal Sorting</h2>
+                <p class="lead">Position text clearly within the green rectangle for optimal OCR results.</p>
+            </div>
+
+            <!-- Enhanced Capture Tips -->
+            <div class="capture-tips">
+                <h6 class="mb-3"><i class="fas fa-lightbulb"></i> Optimal Capture Tips</h6>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="tip-item">
+                            <div class="tip-icon">💡</div>
+                            <small>Ensure good lighting</small>
+                        </div>
+                        <div class="tip-item">
+                            <div class="tip-icon">📏</div>
+                            <small>Keep text horizontal</small>
+                        </div>
+                        <div class="tip-item">
+                            <div class="tip-icon">🎯</div>
+                            <small>Center address in frame</small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="tip-item">
+                            <div class="tip-icon">🤏</div>
+                            <small>Keep hands outside frame</small>
+                        </div>
+                        <div class="tip-item">
+                            <div class="tip-icon">📱</div>
+                            <small>Hold camera steady</small>
+                        </div>
+                        <div class="tip-item">
+                            <div class="tip-icon">🔍</div>
+                            <small>Fill frame with text</small>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <!-- Video Feed with text-focused overlay -->
-            <div id="video-container" class="border rounded shadow-sm mb-3" style="background-color: #f8f9fa;">
-                <video id="video" autoplay playsinline style="width: 100%; height: auto; display: block !important;"></video>
+            <!-- Enhanced Video Feed -->
+            <div id="video-container" class="border rounded shadow-sm mb-3">
+                <video id="video" autoplay playsinline style="width: 100%; height: auto; display: block !important; position: relative; z-index: 2;"></video>
                 
-                <!-- Grid overlay for better alignment -->
-                <div id="grid-overlay">
-                    <div class="grid-line-horizontal" style="top: 33.33%;"></div>
-                    <div class="grid-line-horizontal" style="top: 66.66%;"></div>
-                    <div class="grid-line-vertical" style="left: 33.33%;"></div>
-                    <div class="grid-line-vertical" style="left: 66.66%;"></div>
+                <!-- Quality indicator -->
+                <div id="quality-indicator" class="quality-indicator">
+                    <span id="quality-text">Checking quality...</span>
                 </div>
                 
-                <!-- Main capture guide -->
+                <!-- Enhanced grid overlay -->
+                <div id="grid-overlay">
+                    <div class="grid-line-horizontal" style="top: 25%;"></div>
+                    <div class="grid-line-horizontal" style="top: 50%;"></div>
+                    <div class="grid-line-horizontal" style="top: 75%;"></div>
+                    <div class="grid-line-vertical" style="left: 25%;"></div>
+                    <div class="grid-line-vertical" style="left: 50%;"></div>
+                    <div class="grid-line-vertical" style="left: 75%;"></div>
+                </div>
+                
+                <!-- Enhanced capture guide -->
                 <div id="capture-guide">
-                    <!-- UPDATED: Text guide updated for square -->
-                    <div id="text-guide">📝 SQUARE CAPTURE ZONE</div>
+                    <div id="text-guide">📝 POSITION TEXT HERE FOR BEST OCR</div>
                 </div>
             </div>
             <canvas id="canvas" style="display:none;"></canvas>
 
             <!-- Action Buttons -->
             <div class="row g-2 mb-3">
-                <div class="col">
-                    <!-- UPDATED: Button text updated for square capture -->
-                    <button id="capture" class="btn btn-primary btn-lg w-100">📸 Capture Text</button>
+                <div class="col-md-4">
+                    <button id="capture" class="btn btn-primary btn-lg w-100">
+                        <i class="fas fa-camera"></i> Capture Image
+                    </button>
                 </div>
-                <div class="col">
+                <div class="col-md-4">
                     <button id="process-queue" class="btn btn-success btn-lg w-100" disabled>
-                        <span id="button-text">🔍 Process Queue</span>
+                        <span id="button-text"><i class="fas fa-cogs"></i> Process Queue</span>
                         <span id="loading-spinner" class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display: none;"></span>
+                    </button>
+                </div>
+                <div class="col-md-4">
+                    <button id="sort-all" class="btn btn-warning btn-lg w-100" disabled>
+                        <span id="sort-all-text"><i class="fas fa-sort-amount-up"></i> Sort All</span>
+                        <span id="sort-all-spinner" class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display: none;"></span>
                     </button>
                 </div>
             </div>
 
             <!-- Image Queue Area -->
-            <h5 class="mt-4">📋 Captured Images (<span id="queue-count">0</span>)</h5>
+            <h5 class="mt-4"><i class="fas fa-images"></i> Captured Images (<span id="queue-count">0</span>)</h5>
             <div id="image-queue" class="d-flex flex-wrap gap-2 mb-3 border p-2 rounded bg-light" style="min-height: 110px;">
                 <!-- Captured image thumbnails will appear here -->
             </div>
@@ -175,14 +257,14 @@
             <!-- Results Area -->
             <div class="card shadow-sm">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">📊 Extracted Results</h5>
+                    <h5 class="mb-0"><i class="fas fa-chart-line"></i> OCR Results</h5>
                     <button id="clear-all-results" class="btn btn-sm btn-outline-danger" style="display: none;" onclick="clearAllResults()">
-                        🗑️ Clear All Results
+                        <i class="fas fa-trash"></i> Clear All Results
                     </button>
                 </div>
                 <div class="card-body">
                     <div id="result-area">
-                        Results will appear here after processing...
+                        OCR results will appear here after processing...
                     </div>
                 </div>
             </div>
@@ -190,11 +272,71 @@
         </div>
     </div>
 </div>
+
+<!-- ========================================================== -->
+<!-- UPDATED: Modal for Multi-Parcel Sorting Animation          -->
+<!-- ========================================================== -->
+<div class="modal fade" id="animationModal" tabindex="-1" aria-labelledby="animationModalLabel" aria-hidden="true" data-bs-backdrop="static">
+  <div class="modal-dialog modal-fullscreen">
+    <div class="modal-content bg-dark text-white">
+      <div class="modal-header border-secondary">
+        <h5 class="modal-title" id="animationModalLabel"><i class="fas fa-cogs me-2"></i>Postal Sorting Center - Processing...</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" id="animation-close-btn" disabled></button>
+      </div>
+      <div class="modal-body overflow-hidden d-flex flex-column p-0">
+        
+        <!-- Sorting Center Layout -->
+        <div id="sorting-center" class="flex-grow-1 position-relative">
+          
+          <!-- Main Conveyor Belt - Now Centered -->
+          <div id="main-conveyor" class="position-absolute">
+            <div class="conveyor-track"></div>
+            <div class="conveyor-belt"></div>
+          </div>
+
+          <!-- Branching Lanes Container -->
+          <div id="branching-lanes" class="position-absolute"></div>
+          
+          <!-- Parcels Container - Multiple parcels can exist here -->
+          <div id="parcels-container" class="position-absolute"></div>
+          
+          <!-- Bins Area - Positioned at the end of conveyor -->
+          <div id="bins-area" class="position-absolute"></div>
+
+        </div>
+
+        <!-- Status and Controls -->
+        <div class="bg-dark border-top border-secondary p-3">
+          <div class="row align-items-center">
+            <div class="col-md-8">
+              <h6 id="animation-status-text" class="mb-1">Initializing sorting center...</h6>
+              <small id="animation-progress-text" class="text-muted">Preparing parcels for sorting</small>
+            </div>
+            <div class="col-md-4 text-end">
+              <div class="progress" style="height: 6px;">
+                <div id="animation-progress-bar" class="progress-bar bg-success" style="width: 0%"></div>
+              </div>
+              <small class="text-muted" id="progress-text">0%</small>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
+
+<!-- 1. Load GSAP library first -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+
 <script>
-    // Element References
+    // ==========================================================
+    // SECTION 1: ELEMENT REFERENCES
+    // ==========================================================
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
     const captureButton = document.getElementById('capture');
@@ -205,26 +347,163 @@
     const imageQueueDiv = document.getElementById('image-queue');
     const queueCountSpan = document.getElementById('queue-count');
     const clearAllResultsBtn = document.getElementById('clear-all-results');
+    const qualityIndicator = document.getElementById('quality-text');
+    
+    // The "Sort All" button from your new three-button layout
+    const sortAllButton = document.getElementById('sort-all'); 
+    const sortAllText = document.getElementById('sort-all-text');
+    const sortAllSpinner = document.getElementById('sort-all-spinner');
 
-    // State
+    // Animation Modal References
+    const animationModalElement = document.getElementById('animationModal');
+    const animationModal = new bootstrap.Modal(animationModalElement);
+    const animationStatusText = document.getElementById('animation-status-text');
+    const binDisplayArea = document.getElementById('bin-display-area');
+    const animatedParcel = document.getElementById('animated-parcel');
+    const animationCloseBtn = document.getElementById('animation-close-btn');
+    
+    // ==========================================================
+    // SECTION 2: STATE VARIABLES
+    // ==========================================================
     let capturedImagesData = [];
     let processedResults = [];
+    
+    // ==========================================================
+    // SECTION 3: FUNCTION DEFINITIONS
+    // ==========================================================
 
-    // Setup Camera
+    // Custom Alert System
+    function showCustomAlert(message, type = 'danger', duration = 5000) {
+        const alertContainer = document.getElementById('custom-alert-container');
+        const alertId = 'alert-' + Date.now();
+        
+        const alertElement = document.createElement('div');
+        alertElement.id = alertId;
+        alertElement.className = `alert alert-${type} alert-dismissible fade show mb-2`;
+        alertElement.style.animation = 'slideInRight 0.3s ease-out';
+        alertElement.innerHTML = `
+            <i class="fas fa-${type === 'danger' ? 'exclamation-triangle' : type === 'success' ? 'check-circle' : type === 'warning' ? 'exclamation-circle' : 'info-circle'}"></i>
+            ${message}
+            <button type="button" class="btn-close" onclick="dismissCustomAlert('${alertId}')"></button>
+        `;
+        
+        alertContainer.appendChild(alertElement);
+        
+        // Auto dismiss after duration
+        if (duration > 0) {
+            setTimeout(() => {
+                dismissCustomAlert(alertId);
+            }, duration);
+        }
+        
+        return alertId;
+    }
+    
+    function dismissCustomAlert(alertId) {
+        const alertElement = document.getElementById(alertId);
+        if (alertElement) {
+            alertElement.style.animation = 'slideOutRight 0.3s ease-in';
+            setTimeout(() => {
+                if (alertElement.parentNode) {
+                    alertElement.parentNode.removeChild(alertElement);
+                }
+            }, 300);
+        }
+    }
+    
+    // Add custom animations for alerts
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes slideInRight {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        @keyframes slideOutRight {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
+        
+        #custom-alert-container .alert {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            border: none;
+        }
+    `;
+    document.head.appendChild(style);
+
+    // Enhanced camera setup with quality monitoring
     async function setupCamera() {
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            const constraints = {
+                video: {
+                    width: { ideal: 1920 },
+                    height: { ideal: 1080 },
+                    facingMode: 'environment', // Use back camera on mobile
+                    focusMode: 'auto'
+                }
+            };
+            
+            const stream = await navigator.mediaDevices.getUserMedia(constraints);
             video.srcObject = stream;
             video.play();
+            
+            // Monitor video quality
+            video.addEventListener('loadedmetadata', () => {
+                updateQualityIndicator();
+            });
+            
         } catch (err) {
             resultArea.innerHTML = `<div class="alert alert-danger">Could not access camera. Please grant permission and refresh.</div>`;
         }
     }
+
+    function updateQualityIndicator() {
+        const width = video.videoWidth;
+        const height = video.videoHeight;
+        const qualityElement = document.getElementById('quality-indicator');
+        
+        if (width >= 1280 && height >= 720) {
+            qualityIndicator.textContent = `HD Quality: ${width}x${height}`;
+            qualityElement.className = 'quality-indicator quality-good';
+        } else if (width >= 640 && height >= 480) {
+            qualityIndicator.textContent = `Standard: ${width}x${height}`;
+            qualityElement.className = 'quality-indicator quality-fair';
+        } else {
+            qualityIndicator.textContent = `Low Quality: ${width}x${height}`;
+            qualityElement.className = 'quality-indicator quality-poor';
+        }
+    }
+
     setupCamera();
 
     // Function to delete individual result
     function deleteResult(index) {
         const resultCard = document.getElementById(`result-card-${index}`);
+        if (resultCard) {
+            resultCard.style.transition = 'opacity 0.3s ease';
+            resultCard.style.opacity = '0';
+            setTimeout(() => {
+                resultCard.remove();
+                checkResultsEmpty();
+            }, 300);
+        }
+    }
+
+    // Function to delete individual result by parcel ID
+    function deleteResultByParcelId(parcelId) {
+        const resultCard = document.getElementById(`result-card-${parcelId}`);
         if (resultCard) {
             resultCard.style.transition = 'opacity 0.3s ease';
             resultCard.style.opacity = '0';
@@ -252,13 +531,46 @@
         }
     }
 
+    // Function to update Sort All button state based on available processed parcels
+    function updateSortAllButtonState() {
+        const sortAllButton = document.getElementById('sort-all');
+        const processedCards = document.querySelectorAll('.alert-success, .alert-warning');
+        const hasProcessedParcels = Array.from(processedCards).some(card => 
+            card.innerHTML.includes('Ready for batch sorting') || 
+            card.innerHTML.includes('Successfully processed')
+        );
+        
+        if (hasProcessedParcels) {
+            sortAllButton.disabled = false;
+        } else {
+            sortAllButton.disabled = true;
+        }
+    }
+
     // Function to handle manual PIN code entry
     function handleManualPincode(parcel_id, index) {
-        const pincodeInput = document.getElementById(`pincode-input-${index}`);
+        // Check if this result already has a successful PIN code
+        const resultCard = document.getElementById(`result-card-${parcel_id}`);
+        if (resultCard && resultCard.classList.contains('alert-success')) {
+            showCustomAlert("This item already has a PIN code and has been successfully processed!", "warning");
+            return;
+        }
+        
+        // Handle both new captures and existing parcels
+        const pincodeInputId = index === 'existing' ? `pincode-input-existing-${parcel_id}` : `pincode-input-${index}`;
+        const pincodeInput = document.getElementById(pincodeInputId);
         const pincode = pincodeInput.value.trim();
         
+        // Validate PIN code format
         if (!/^\d{6}$/.test(pincode)) {
-            alert("PIN code must be exactly 6 digits!");
+            showCustomAlert("PIN code must be exactly 6 digits!", "warning");
+            pincodeInput.focus();
+            return;
+        }
+        
+        // Additional validation - check if PIN starts with 673 (based on your bin validation rules)
+        if (!pincode.startsWith('673')) {
+            showCustomAlert("PIN code must start with '673' according to system requirements!", "warning");
             pincodeInput.focus();
             return;
         }
@@ -273,24 +585,38 @@
             if (data.success) {
                 const originalResult = processedResults[index];
                 const extractedText = originalResult ? originalResult.full_text : 'No text could be extracted.';
-                const errorCard = document.getElementById(`result-card-${index}`);
+                const errorCard = document.getElementById(`result-card-${parcel_id}`);
                 errorCard.className = 'alert alert-success position-relative';
                 errorCard.innerHTML = `
-                    <button type="button" class="btn-close position-absolute top-0 end-0 m-2" onclick="deleteResult(${index})" title="Delete this result"></button>
-                    <strong>Image ${index + 1}: Success! (Manual Entry)</strong><br>
-                    <strong>PIN Code:</strong> ${data.pincode}<br>
+                    <button type="button" class="btn-close position-absolute top-0 end-0 m-2" onclick="deleteResultByParcelId(${parcel_id})" title="Delete this result"></button>
+                    <strong>✅ Manual PIN Entry Success!</strong><br>
+                    <strong>📍 PIN Code:</strong> ${data.pincode}<br>
                     <small class="text-muted">Parcel ID: ${parcel_id}</small><br>
-                    <details>
-                        <summary>Show Full Extracted Text</summary>
+                    <div class="alert alert-info mt-2 mb-2">
+                        <i class="fas fa-user-edit"></i> <strong>Manually entered PIN code</strong> - Original OCR failed to detect PIN in extracted text.
+                    </div>
+                    
+                    <!-- Ready for batch sorting -->
+                    <div class="alert alert-success mt-3 mb-2">
+                        <i class="fas fa-check-circle"></i> <strong>Ready for batch sorting</strong> - Use "Sort All" button above.
+                    </div>
+                    
+                    <details class="mt-3">
+                        <summary>Show Original Extracted Text</summary>
                         <pre class="mt-2"><code>${extractedText}</code></pre>
                     </details>
                 `;
+                
+                // Enable Sort All button since we now have a processed parcel
+                updateSortAllButtonState();
+                
+                showCustomAlert(`PIN code ${data.pincode} successfully added!`, "success");
             } else {
-                alert("Error updating PIN code: " + data.error);
+                showCustomAlert("Error updating PIN code: " + data.error, "danger");
             }
         })
         .catch(error => {
-            alert("Error communicating with server");
+            showCustomAlert("Error communicating with server", "danger");
         });
     }
 
@@ -345,7 +671,341 @@
         processQueueButton.disabled = capturedImagesData.length === 0;
     }
 
-    // UPDATED: Capture Button Logic changed to Square Cropping
+    // NEW: Multi-Parcel Sorting Animation System
+function startSortingAnimation(tasks) {
+    // Reset and initialize the sorting center
+    animationStatusText.textContent = 'Initializing postal sorting center...';
+    animationCloseBtn.disabled = true;
+    
+    // Clear previous elements
+    document.getElementById('branching-lanes').innerHTML = '';
+    document.getElementById('parcels-container').innerHTML = '';
+    document.getElementById('bins-area').innerHTML = '';
+    
+    // Create bins
+    const uniqueBins = [...new Set(tasks.map(task => task.bin_name))];
+    createBins(uniqueBins);
+    
+    // Show modal and start the multi-parcel animation
+    animationModal.show();
+    
+    // Small delay to ensure DOM is ready
+    setTimeout(() => {
+        animateMultipleParcels(tasks);
+    }, 500);
+}
+
+function createBins(binNames) {
+    const binsArea = document.getElementById('bins-area');
+    
+    binNames.forEach((binName, index) => {
+        const binStation = document.createElement('div');
+        binStation.className = 'bin-station';
+        binStation.dataset.binName = binName;
+        
+        binStation.innerHTML = `
+            <div class="bin-front ${binName === 'Error Bin' ? 'error' : ''}">
+                ${binName}
+            </div>
+        `;
+        
+        binsArea.appendChild(binStation);
+    });
+}
+
+function animateMultipleParcels(tasks) {
+    const totalTasks = tasks.length;
+    let completedTasks = 0;
+    
+    // Update progress
+    updateProgress(completedTasks, totalTasks);
+    animationStatusText.textContent = `Sorting ${totalTasks} parcels...`;
+    
+    // Create and animate each parcel with staggered delays
+    tasks.forEach((task, index) => {
+        // Stagger the start of each parcel
+        setTimeout(() => {
+            createAndAnimateParcel(task, index, () => {
+                completedTasks++;
+                updateProgress(completedTasks, totalTasks);
+                
+                if (completedTasks === totalTasks) {
+                    animationStatusText.textContent = 'Sorting Complete! All parcels processed.';
+                    animationCloseBtn.disabled = false;
+                    
+                    setTimeout(() => {
+                        if (animationModalElement.classList.contains('show')) {
+                            animationModal.hide();
+                            window.location.reload();
+                        }
+                    }, 3000);
+                }
+            });
+        }, index * 800); // 800ms delay between each parcel start
+    });
+}
+
+function createAndAnimateParcel(task, parcelIndex, onComplete) {
+    const parcelsContainer = document.getElementById('parcels-container');
+    
+    // Create parcel element
+    const parcel = document.createElement('div');
+    parcel.className = 'parcel processing';
+    parcel.id = `parcel-${task.parcel_id}`;
+    parcel.dataset.binName = task.bin_name;
+    
+    // Set parcel background image
+    const imageUrl = `/${task.image_path.replace(/\\/g, '/')}`;
+    parcel.style.backgroundImage = `url(${imageUrl})`;
+    
+    // Add parcel ID label for small parcels
+    parcel.textContent = `#${task.parcel_id}`;
+    
+    parcelsContainer.appendChild(parcel);
+    
+    // Get DOM elements
+    const mainConveyor = document.getElementById('main-conveyor');
+    const targetBin = document.querySelector(`.bin-station[data-bin-name="${task.bin_name}"]`);
+    
+    if (!targetBin) {
+        console.error('Target bin not found:', task.bin_name);
+        onComplete();
+        return;
+    }
+    
+    // Highlight target bin
+    targetBin.classList.add('highlighted');
+    
+    // Calculate positions
+    const conveyorRect = mainConveyor.getBoundingClientRect();
+    const binRect = targetBin.getBoundingClientRect();
+    const sortingCenter = document.getElementById('sorting-center');
+    const centerRect = sortingCenter.getBoundingClientRect();
+    
+    // Create branching lane
+    createBranchingLane(conveyorRect, binRect, centerRect, task.bin_name);
+    
+    // Animation timeline
+    const tl = gsap.timeline({
+        onComplete: () => {
+            // Remove parcel from DOM
+            setTimeout(() => {
+                parcel.remove();
+                targetBin.classList.remove('highlighted');
+                
+                // Bin success flash
+                gsap.to(targetBin, {
+                    filter: "brightness(1.4)",
+                    duration: 0.2,
+                    yoyo: true,
+                    repeat: 2,
+                    ease: "power2.inOut",
+                    onStart: playSuccessSound
+                });
+                
+                onComplete();
+            }, 500);
+        }
+    });
+    
+    // Initial position (left of conveyor)
+    gsap.set(parcel, {
+        x: -100,
+        y: conveyorRect.top - centerRect.top + (conveyorRect.height / 2) - 40,
+        rotation: 0,
+        scale: 1,
+        opacity: 1
+    });
+    
+    // Animation sequence
+    tl
+    // Enter and move along main conveyor
+    .to(parcel, {
+        x: conveyorRect.width * 0.6,
+        duration: 1.5,
+        ease: "power1.out"
+    })
+    // Pause briefly at decision point
+    .to(parcel, {
+        duration: 0.3
+    })
+    // Branch off to target bin with curve
+    .to(parcel, {
+        x: binRect.left - centerRect.left - 40,
+        y: binRect.top - centerRect.top + (binRect.height / 2) - 40,
+        rotation: 10,
+        duration: 1.2,
+        ease: "power1.inOut"
+    })
+    // Final approach and drop
+    .to(parcel, {
+        x: binRect.left - centerRect.left + 20,
+        y: binRect.top - centerRect.top + binRect.height - 30,
+        rotation: -5,
+        scale: 0.8,
+        duration: 0.6,
+        ease: "power2.in",
+        onStart: playDropSound
+    })
+    // Drop into bin
+    .to(parcel, {
+        y: binRect.top - centerRect.top + binRect.height + 20,
+        opacity: 0,
+        scale: 0.6,
+        rotation: -15,
+        duration: 0.4,
+        ease: "power3.in"
+    });
+}
+
+function createBranchingLane(conveyorRect, binRect, centerRect, binName) {
+    const branchingLanes = document.getElementById('branching-lanes');
+    
+    const lane = document.createElement('div');
+    lane.className = `branch-lane ${binName === 'Error Bin' ? 'error-lane' : ''}`;
+    
+    // Calculate lane position and angle
+    const startX = conveyorRect.left - centerRect.left + conveyorRect.width * 0.6;
+    const startY = conveyorRect.top - centerRect.top + conveyorRect.height / 2;
+    const endX = binRect.left - centerRect.left - 20;
+    const endY = binRect.top - centerRect.top + binRect.height / 2;
+    
+    const length = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
+    const angle = Math.atan2(endY - startY, endX - startX) * (180 / Math.PI);
+    
+    // Set lane properties
+    lane.style.width = length + 'px';
+    lane.style.left = startX + 'px';
+    lane.style.top = startY + 'px';
+    lane.style.transform = `rotate(${angle}deg)`;
+    
+    branchingLanes.appendChild(lane);
+    
+    // Animate lane appearance
+    gsap.from(lane, {
+        scaleX: 0,
+        duration: 0.5,
+        ease: "power2.out",
+        transformOrigin: "left center"
+    });
+}
+
+function updateProgress(completed, total) {
+    const progress = total > 0 ? (completed / total) * 100 : 0;
+    const progressBar = document.getElementById('animation-progress-bar');
+    const progressText = document.getElementById('progress-text');
+    
+    gsap.to(progressBar, {
+        width: progress + '%',
+        duration: 0.5,
+        ease: "power2.out"
+    });
+    
+    progressText.textContent = `${Math.round(progress)}%`;
+    document.getElementById('animation-progress-text').textContent = 
+        `Processed ${completed} of ${total} parcels`;
+}
+
+// Enhanced audio functions
+function playDropSound() {
+    try {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.setValueAtTime(600, audioContext.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(150, audioContext.currentTime + 0.2);
+        
+        gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.2);
+    } catch (e) {
+        console.log('Audio context not available');
+    }
+}
+
+function playSuccessSound() {
+    try {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.setValueAtTime(523, audioContext.currentTime);
+        oscillator.frequency.setValueAtTime(659, audioContext.currentTime + 0.1);
+        oscillator.frequency.setValueAtTime(784, audioContext.currentTime + 0.2);
+        
+        gainNode.gain.setValueAtTime(0.15, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.3);
+    } catch (e) {
+        console.log('Audio context not available');
+    }
+}
+     // ==========================================================
+     // SECTION 4: EVENT LISTENERS & INITIAL CALLS
+     // ==========================================================
+     
+     // Audio feedback system
+     const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+     
+     function playDropSound() {
+         try {
+             // Create a simple drop sound effect using Web Audio API
+             const oscillator = audioContext.createOscillator();
+             const gainNode = audioContext.createGain();
+             
+             oscillator.connect(gainNode);
+             gainNode.connect(audioContext.destination);
+             
+             oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+             oscillator.frequency.exponentialRampToValueAtTime(200, audioContext.currentTime + 0.3);
+             
+             gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+             gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+             
+             oscillator.start(audioContext.currentTime);
+             oscillator.stop(audioContext.currentTime + 0.3);
+         } catch (e) {
+             // Silently fail if audio context is not available
+             console.log('Audio context not available');
+         }
+     }
+     
+     function playSuccessSound() {
+         try {
+             // Create a success chime
+             const oscillator = audioContext.createOscillator();
+             const gainNode = audioContext.createGain();
+             
+             oscillator.connect(gainNode);
+             gainNode.connect(audioContext.destination);
+             
+             oscillator.frequency.setValueAtTime(523, audioContext.currentTime); // C5
+             oscillator.frequency.setValueAtTime(659, audioContext.currentTime + 0.1); // E5
+             oscillator.frequency.setValueAtTime(784, audioContext.currentTime + 0.2); // G5
+             
+             gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+             gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
+             
+             oscillator.start(audioContext.currentTime);
+             oscillator.stop(audioContext.currentTime + 0.4);
+         } catch (e) {
+             console.log('Audio context not available');
+         }
+     }
+     
+     // Initial camera setup
+     setupCamera();
+
+    // Enhanced capture button with better cropping and quality
     captureButton.addEventListener('click', () => {
         if (video.readyState < 2) return;
 
@@ -353,24 +1013,24 @@
         const videoWidth = video.videoWidth;
         const videoHeight = video.videoHeight;
         
-        // CHANGED: Square Cropping instead of Rectangle (50% x 50%)
-        // Calculate the smaller dimension to ensure we get a perfect square
-        const smallerDimension = Math.min(videoWidth, videoHeight);
-        const cropSize = smallerDimension * 0.5; // 50% of the smaller dimension
-        
-        // Center the square crop area
-        const sx = (videoWidth - cropSize) / 2;   // Center horizontally
-        const sy = (videoHeight - cropSize) / 2;  // Center vertically
+        // More focused cropping for cleaner text extraction (60% width, 30% height)
+        const cropWidth = videoWidth * 0.6;  // Reduced from 0.7
+        const cropHeight = videoHeight * 0.3; // Reduced from 0.35
+        const sx = (videoWidth - cropWidth) / 2;
+        const sy = (videoHeight - cropHeight) / 2;
 
-        // Set canvas to the square crop size
-        canvas.width = cropSize;
-        canvas.height = cropSize;
+        // Set canvas to optimal resolution for OCR
+        canvas.width = cropWidth;
+        canvas.height = cropHeight;
 
-        // Draw the cropped square portion of the video onto the canvas
-        context.drawImage(video, sx, sy, cropSize, cropSize, 0, 0, cropSize, cropSize);
+        // Draw with enhanced quality settings
+        context.imageSmoothingEnabled = true;
+        context.imageSmoothingQuality = 'high';
+        context.drawImage(video, sx, sy, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
 
-        const imageDataURL = canvas.toDataURL('image/jpeg', 0.9);
-        capturedImagesData.push(imageDataURL);
+        // Use highest quality JPEG encoding
+        const imageDataURL = canvas.toDataURL('image/jpeg', 0.98);
+        capturedImagesData.unshift(imageDataURL);
         updateQueueUI();
     });
 
@@ -398,57 +1058,96 @@
             capturedImagesData = [];
             updateQueueUI();
 
+            let allResultCards = '';
             data.results.forEach((result, index) => {
                 let resultCard;
                 if (result.status === 'Success') {
                     resultCard = `
-                        <div class="alert alert-success position-relative" id="result-card-${index}">
-                            <button type="button" class="btn-close position-absolute top-0 end-0 m-2" onclick="deleteResult(${index})" title="Delete this result"></button>
+                        <div class="alert alert-success position-relative" id="result-card-${result.parcel_id}">
+                            <button type="button" class="btn-close position-absolute top-0 end-0 m-2"
+                                onclick="deleteResultByParcelId(${result.parcel_id})" title="Delete this result"></button>
                             <strong>📋 Image ${index + 1}: Success!</strong><br>
                             <strong>📍 PIN Code Found:</strong> ${result.pin_code}<br>
                             <small class="text-muted">Parcel ID: ${result.parcel_id}</small><br>
-                            <details>
+                            
+                            <!-- Ready for Batch Sorting -->
+                            <div class="mt-3">
+                                <div class="alert alert-info mb-0">
+                                    <i class="fas fa-check-circle"></i> Ready for batch sorting
+                                </div>
+                            </div>
+                            
+                            <details class="mt-3">
                                 <summary>Show Full Extracted Text</summary>
                                 <pre class="mt-2"><code>${result.full_text}</code></pre>
                             </details>
                         </div>`;
                 } else {
-                    resultCard = `
-                        <div class="alert alert-warning position-relative" id="result-card-${index}">
-                            <button type="button" class="btn-close position-absolute top-0 end-0 m-2" onclick="deleteResult(${index})" title="Delete this result"></button>
-                            <strong>⚠️ Image ${index + 1}: No PIN Code Detected</strong><br>
-                            ${result.message}<br>
-                            <small class="text-muted">Parcel ID: ${result.parcel_id}</small><br>
-                            
-                            <div class="mt-3 p-3 bg-light border rounded">
-                                <label for="pincode-input-${index}" class="form-label"><strong>📝 Enter PIN Code Manually:</strong></label>
-                                <div class="input-group">
-                                    <input type="text" 
-                                           id="pincode-input-${index}" 
-                                           class="form-control" 
-                                           placeholder="6-digit PIN code" 
-                                           maxlength="6" 
-                                           pattern="[0-9]{6}"
-                                           onkeypress="if(event.key==='Enter') handleManualPincode(${result.parcel_id}, ${index})">
-                                    <button class="btn btn-primary" 
-                                            type="button" 
-                                            onclick="handleManualPincode(${result.parcel_id}, ${index})">
-                                        OK
-                                    </button>
+                    // Check if any text was extracted using the backend flag
+                    const hasExtractedText = result.has_extracted_text;
+                    
+                    if (hasExtractedText) {
+                        // Text was extracted but no PIN found - allow manual entry
+                        resultCard = `
+                            <div class="alert alert-warning position-relative" id="result-card-${result.parcel_id}">
+                                <button type="button" class="btn-close position-absolute top-0 end-0 m-2"
+                                    onclick="deleteResultByParcelId(${result.parcel_id})" title="Delete this result"></button>
+                                <strong>⚠️ Image ${index + 1}: Text Found, No PIN Code Detected</strong><br>
+                                ${result.message}<br>
+                                <small class="text-muted">Parcel ID: ${result.parcel_id}</small><br>
+                                <div class="mt-3 p-3 bg-light border rounded">
+                                    <label for="pincode-input-${index}" class="form-label"><strong>📝 Enter PIN Code Manually:</strong></label>
+                                    <div class="input-group">
+                                        <input type="text"
+                                               id="pincode-input-${index}"
+                                               class="form-control"
+                                               placeholder="6-digit PIN code"
+                                               maxlength="6"
+                                               pattern="[0-9]{6}"
+                                               onkeypress="if(event.key==='Enter') handleManualPincode(${result.parcel_id}, ${index})">
+                                        <button class="btn btn-primary"
+                                                type="button"
+                                                onclick="handleManualPincode(${result.parcel_id}, ${index})">
+                                            OK
+                                        </button>
+                                    </div>
+                                    <small class="text-muted">Press Enter or click OK to submit</small>
                                 </div>
-                                <small class="text-muted">Press Enter or click OK to submit</small>
-                            </div>
-                            
-                            <details class="mt-3">
-                                <summary>Show Full Extracted Text</summary>
-                                <pre class="mt-2"><code>${result.full_text || 'No text could be extracted.'}</code></pre>
-                            </details>
-                        </div>`;
+                                <details class="mt-3">
+                                    <summary>Show Extracted Text</summary>
+                                    <pre class="mt-2"><code>${result.full_text}</code></pre>
+                                </details>
+                            </div>`;
+                    } else {
+                        // No text extracted at all - no manual entry needed
+                        resultCard = `
+                            <div class="alert alert-danger position-relative" id="result-card-${result.parcel_id}">
+                                <button type="button" class="btn-close position-absolute top-0 end-0 m-2"
+                                    onclick="deleteResultByParcelId(${result.parcel_id})" title="Delete this result"></button>
+                                <strong>❌ Image ${index + 1}: No Text Extracted</strong><br>
+                                <p class="mb-2">The image quality was too poor to extract any readable text. Please recapture this item with:</p>
+                                <ul class="mb-3">
+                                    <li>Better lighting</li>
+                                    <li>Clearer focus</li>
+                                    <li>Text positioned within the green frame</li>
+                                    <li>Camera held steadily</li>
+                                </ul>
+                                <small class="text-muted">Parcel ID: ${result.parcel_id}</small><br>
+                                <div class="alert alert-info mt-3 mb-0">
+                                    <i class="fas fa-info-circle"></i> <strong>No manual entry required</strong> - Please recapture the image instead.
+                                </div>
+                            </div>`;
+                    }
                 }
-                resultArea.innerHTML += resultCard;
+                // Prepend each result to show newest first
+                allResultCards = resultCard + allResultCards;
             });
             
+            // Prepend new results to existing results (keep previous results)
+            resultArea.innerHTML = allResultCards + resultArea.innerHTML;
+            
             clearAllResultsBtn.style.display = 'inline-block';
+            updateSortAllButtonState();
         })
         .catch(error => {
             resultArea.innerHTML = `<div class="alert alert-danger">Server communication error.</div>`;
@@ -458,6 +1157,131 @@
             loadingSpinner.style.display = 'none';
             captureButton.disabled = false;
         });
+    });
+
+    // Sort All Button functionality
+    sortAllButton.addEventListener('click', function() {
+        sortAllButton.disabled = true;
+        sortAllText.style.display = 'none';
+        sortAllSpinner.style.display = 'inline-block';
+
+        fetch('/staff/sort_all_parcels', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+    if (data.success) {
+        // Combine sorted and error items for the animation
+        const allTasks = [
+            ...data.sorted_details,
+            ...data.error_details.map(err => ({ ...err, bin_name: 'Error Bin' }))
+        ];
+
+        if (allTasks.length > 0) {
+            // Clear the results area and start the animation
+            resultArea.innerHTML = 'Sorting complete!';
+            clearAllResultsBtn.style.display = 'none';
+            sortAllButton.style.display = 'none'; // Hide the button now
+            startSortingAnimation(allTasks);
+        } else {
+            showCustomAlert("No items were ready for sorting.", "info");
+        }
+        } else {
+        showCustomAlert(`Error during batch sorting: ${data.error}`, 'danger');
+        }
+        })
+        .catch(error => {
+            showCustomAlert('Error communicating with server during batch sorting', 'danger');
+        })
+        .finally(() => {
+            updateSortAllButtonState();
+            sortAllText.style.display = 'inline-block';
+            sortAllSpinner.style.display = 'none';
+        });
+    });
+
+
+    // Load unsorted parcels on page load (for persistence)
+    function loadUnsortedParcels() {
+        fetch('/staff/get_unsorted_parcels')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const processedParcels = data.processed_parcels || [];
+                const failedWithText = data.failed_with_text || [];
+                
+                if (processedParcels.length > 0 || failedWithText.length > 0) {
+                    // Update Sort All button state based on processed parcels
+                    updateSortAllButtonState();
+                    
+                    // Display existing unsorted parcels
+                    processedParcels.forEach((parcel, index) => {
+                        const resultCard = `
+                            <div class="alert alert-success position-relative" id="result-card-${parcel.parcel_id}">
+                                <button type="button" class="btn-close position-absolute top-0 end-0 m-2"
+                                    onclick="deleteResultByParcelId(${parcel.parcel_id})" title="Delete this result"></button>
+                                <strong>📋 Existing Item ${index + 1}: Ready for Sorting</strong><br>
+                                <strong>📍 Address:</strong> ${parcel.extracted_address.substring(0, 100)}${parcel.extracted_address.length > 100 ? '...' : ''}<br>
+                                <small class="text-muted">Parcel ID: ${parcel.parcel_id} | Captured: ${new Date(parcel.upload_time).toLocaleString()}</small><br>
+                                
+                                <!-- Individual Sort Button (removed to match requirement 3) -->
+                                <div class="alert alert-info mt-3 mb-0">
+                                    <i class="fas fa-info-circle"></i> <strong>Ready for batch sorting</strong> - Use "Sort All" button above.
+                                </div>
+                            </div>`;
+                        resultArea.innerHTML += resultCard;
+                    });
+
+                    // Display failed items that can be manually entered
+                    failedWithText.forEach((parcel, index) => {
+                        const resultCard = `
+                            <div class="alert alert-warning position-relative" id="result-card-${parcel.parcel_id}">
+                                <button type="button" class="btn-close position-absolute top-0 end-0 m-2"
+                                    onclick="deleteResultByParcelId(${parcel.parcel_id})" title="Delete this result"></button>
+                                <strong>⚠️ Existing Item: Text Found, Needs Manual PIN</strong><br>
+                                Address: ${parcel.extracted_address.substring(0, 100)}${parcel.extracted_address.length > 100 ? '...' : ''}<br>
+                                <small class="text-muted">Parcel ID: ${parcel.parcel_id}</small><br>
+                                <div class="mt-3 p-3 bg-light border rounded">
+                                    <label for="pincode-input-existing-${parcel.parcel_id}" class="form-label"><strong>📝 Enter PIN Code Manually:</strong></label>
+                                    <div class="input-group">
+                                        <input type="text"
+                                               id="pincode-input-existing-${parcel.parcel_id}"
+                                               class="form-control"
+                                               placeholder="6-digit PIN code"
+                                               maxlength="6"
+                                               pattern="[0-9]{6}"
+                                               onkeypress="if(event.key==='Enter') handleManualPincode(${parcel.parcel_id}, 'existing')">
+                                        <button class="btn btn-primary"
+                                                type="button"
+                                                onclick="handleManualPincode(${parcel.parcel_id}, 'existing')">
+                                            OK
+                                        </button>
+                                    </div>
+                                    <small class="text-muted">Press Enter or click OK to submit</small>
+                                </div>
+                            </div>`;
+                        resultArea.innerHTML += resultCard;
+                    });
+                    
+                    if (processedParcels.length > 0 || failedWithText.length > 0) {
+                        clearAllResultsBtn.style.display = 'inline-block';
+                        updateSortAllButtonState();
+                        showCustomAlert(`Loaded ${processedParcels.length + failedWithText.length} existing unsorted items`, 'info', 3000);
+                    }
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error loading unsorted parcels:', error);
+        });
+    }
+
+    // Load unsorted parcels when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        loadUnsortedParcels();
     });
 </script>
 {% endblock %}

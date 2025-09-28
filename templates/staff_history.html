@@ -1,0 +1,194 @@
+{% extends "staff_base.html" %}
+
+{% block title %}My Sorting History{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold"><i class="fas fa-history me-2"></i>My Sorting History</h2>
+            <p class="text-muted mb-0">A log of all items you have sorted in this session.</p>
+        </div>
+        <a href="{{ url_for('capture_page') }}" class="btn btn-primary">
+            <i class="fas fa-camera me-1"></i> Back to Capture
+        </a>
+    </div>
+
+    <!-- Display Flash Messages (e.g., for database errors) -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <!-- History Table Card -->
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            {% if sorted_items %}
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped mb-0 align-middle">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>SL. No</th>
+                                <th>Parcel ID</th>
+                                <th>Sorted Into</th>
+                                <th>Associated PIN</th>
+                                <th>Time Captured</th>
+                                <th>Time Sorted</th>
+                                <th>Captured Image</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in sorted_items %}
+                                <tr>
+                                    <td>{{ loop.index }}</td>
+                                    <td><strong>{{ item.parcel_id }}</strong></td>
+                                    <td><i class="fas fa-box me-2"></i>{{ item.bin_name }}</td>
+                                    <td><span class="badge bg-primary">{{ item.pin }}</span></td>
+                                    <td><small class="text-muted">{{ item.upload_time.strftime('%Y-%m-%d %H:%M:%S') }}</small></td>
+                                    <td><small class="text-success">{{ item.sorted_time.strftime('%Y-%m-%d %H:%M:%S') }}</small></td>
+                                    <td>
+                                        <div class="image-container position-relative" style="width: 60px; height: 60px;">
+                                            <img src="/{{ item.image_path.replace('\\', '/') }}" 
+                                                 alt="Parcel {{ item.parcel_id }}" 
+                                                 class="img-thumbnail cursor-pointer image-thumbnail" 
+                                                 style="width: 60px; height: 60px; object-fit: cover;"
+                                                 data-bs-toggle="modal" 
+                                                 data-bs-target="#imageModal"
+                                                 data-image-url="/{{ item.image_path.replace('\\', '/') }}"
+                                                 data-parcel-id="{{ item.parcel_id }}"
+                                                 data-fallback-url="{{ url_for('static', filename='images/icon.jpg') }}"
+                                                 title="Original path: {{ item.image_path }}">
+                                            <div class="loading-spinner position-absolute top-50 start-50 translate-middle d-none" style="z-index: 1;">
+                                                <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                                    <span class="visually-hidden">Loading...</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center p-5">
+                    <i class="fas fa-box-open fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">No items have been sorted in this session yet.</h5>
+                    <p class="text-muted">Once you sort items, they will appear here.</p>
+                </div>
+            {% endif %}
+        </div>
+        {% if sorted_items %}
+        <div class="card-footer text-muted small">
+            Displaying {{ sorted_items|length }} sorted items from the current session.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Image Modal -->
+<div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="imageModalLabel">Parcel Image</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center position-relative">
+                <div id="modalImageContainer" class="position-relative">
+                    <img id="modalImage" src="" alt="Parcel Image" class="img-fluid" style="max-width: 100%; max-height: 70vh; min-height: 200px;"
+                         data-fallback-url="{{ url_for('static', filename='images/icon.jpg') }}">
+                    <div id="modalLoadingSpinner" class="position-absolute top-50 start-50 translate-middle">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                    <div id="imageErrorMessage" class="alert alert-warning mt-3 d-none">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Original image could not be loaded. Showing placeholder instead.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Add cursor pointer and image loading styles
+    const style = document.createElement('style');
+    style.textContent = `
+        .cursor-pointer { cursor: pointer; }
+        .cursor-pointer:hover { opacity: 0.8; transform: scale(1.05); transition: all 0.2s ease; }
+        .image-thumbnail.loaded { opacity: 1; }
+        .image-thumbnail.error-image { opacity: 0.6; border: 2px dashed #ffc107; }
+        .image-thumbnail:not(.loaded) { opacity: 0.7; }
+        .loading-spinner { display: none !important; }
+    `;
+    document.head.appendChild(style);
+    
+    // Setup error handling for thumbnail images
+    document.querySelectorAll('.image-thumbnail').forEach(img => {
+        const fallbackUrl = img.getAttribute('data-fallback-url');
+        const originalPath = img.title;
+        
+        console.log('Image path from DB:', originalPath);
+        console.log('Generated URL:', img.src);
+        
+        img.addEventListener('load', function() {
+            this.classList.add('loaded');
+            console.log('Image loaded successfully:', this.src);
+        });
+        
+        img.addEventListener('error', function() {
+            console.log('Image failed to load:', this.src);
+            console.log('Original path was:', originalPath);
+            this.src = fallbackUrl;
+            this.classList.add('error-image');
+            this.title = 'Original image not available - showing placeholder';
+        });
+        
+        // Initial loading state
+        if (!img.complete) {
+            img.style.opacity = '0.5';
+        }
+    });
+    
+    // Handle thumbnail clicks
+    document.querySelectorAll('.image-thumbnail').forEach(thumbnail => {
+        thumbnail.addEventListener('click', function() {
+            const imageUrl = this.getAttribute('data-image-url');
+            const parcelId = this.getAttribute('data-parcel-id');
+            const fallbackUrl = this.getAttribute('data-fallback-url');
+            
+            // Show loading spinner
+            document.getElementById('modalLoadingSpinner').style.display = 'block';
+            document.getElementById('imageErrorMessage').classList.add('d-none');
+            
+            const modalImage = document.getElementById('modalImage');
+            
+            modalImage.onload = function() {
+                document.getElementById('modalLoadingSpinner').style.display = 'none';
+            };
+            
+            modalImage.onerror = function() {
+                document.getElementById('modalLoadingSpinner').style.display = 'none';
+                document.getElementById('imageErrorMessage').classList.remove('d-none');
+                this.src = fallbackUrl;
+                console.log('Modal image failed to load:', imageUrl);
+            };
+            
+            modalImage.src = imageUrl;
+            document.getElementById('imageModalLabel').textContent = `Parcel ${parcelId} - Captured Image`;
+        });
+    });
+});
+</script>
+{% endblock %}

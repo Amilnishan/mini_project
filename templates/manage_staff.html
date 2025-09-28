@@ -33,6 +33,55 @@
       });
     }, 2500);
   });
+
+  document.addEventListener('DOMContentLoaded', function() {
+    const phoneInput = document.getElementById('phone');
+    const nameInput = document.getElementById('staff_name');
+    const staffForm = document.getElementById('staff-form');
+    const phoneError = document.getElementById('phone-error');
+    const nameError = document.getElementById('name-error');
+
+    function validatePhone() {
+        const phoneValue = phoneInput.value;
+        // Validates if the phone number is 10 digits.
+        if (/^\d{10}$/.test(phoneValue)) {
+            phoneInput.classList.remove('is-invalid');
+            phoneError.style.display = 'none';
+            return true;
+        } else {
+            phoneInput.classList.add('is-invalid');
+            phoneError.style.display = 'block';
+            return false;
+        }
+    }
+
+    function validateName() {
+        const nameValue = nameInput.value.trim();
+        // Validates if the name contains at least 3 alphabetic characters
+        const alphabeticCount = (nameValue.match(/[A-Za-z]/g) || []).length;
+        if (alphabeticCount >= 3) {
+            nameInput.classList.remove('is-invalid');
+            nameError.style.display = 'none';
+            return true;
+        } else {
+            nameInput.classList.add('is-invalid');
+            nameError.style.display = 'block';
+            return false;
+        }
+    }
+
+    phoneInput.addEventListener('input', validatePhone);
+    nameInput.addEventListener('input', validateName);
+
+    staffForm.addEventListener('submit', function(e) {
+        const isPhoneValid = validatePhone();
+        const isNameValid = validateName();
+        
+        if (!isPhoneValid || !isNameValid) {
+            e.preventDefault(); // Prevent form submission if validation fails
+        }
+    });
+});
 </script>
 
 <div class="card shadow-sm">
@@ -88,15 +137,21 @@
         <h5 class="modal-title" id="addStaffModalLabel">Add New Staff Member</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-      <form method="POST" action="{{ url_for('manage_staff') }}">
+      <form method="POST" action="{{ url_for('manage_staff') }}" id="staff-form">
         <div class="modal-body">
           <div class="mb-3">
             <label for="staff_name" class="form-label">Full Name</label>
-            <input type="text" class="form-control" id="staff_name" name="staff_name" required>
+            <input type="text" class="form-control" id="staff_name" name="staff_name" required pattern="[A-Za-z\s]{3,}" title="Full name must contain at least 3 alphabetic characters.">
+            <div class="invalid-feedback" id="name-error" style="display:none;">
+              Full name must contain at least 3 alphabetic characters.
+            </div>
           </div>
           <div class="mb-3">
             <label for="phone" class="form-label">Phone Number</label>
-            <input type="tel" class="form-control" id="phone" name="phone" required>
+            <input type="tel" class="form-control" id="phone" name="phone" required pattern="\d{10,11}" title="Phone number must be 10 or 11 digits.">
+            <div class="invalid-feedback" id="phone-error" style="display:none;">
+              Phone number must be 10 or 11 digits.
+            </div>
           </div>
           <hr>
           <div class="mb-3">
@@ -116,4 +171,4 @@
     </div>
   </div>
 </div>
-{% endblock %}```
+{% endblock %}

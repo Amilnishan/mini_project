@@ -1,0 +1,608 @@
+{% extends "staff_base.html" %}
+
+{% block title %}Manage Bins{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <!-- Column for creating a new bin -->
+        <div class="col-md-4">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0">Create New Bin</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('view_bins') }}" id="binForm">
+                        <div class="mb-3">
+                            <label for="bin_name" class="form-label">Bin Name</label>
+                            <input type="text" class="form-control" id="bin_name" name="bin_name" placeholder="e.g., bin 673303" required>
+                            <div class="form-text">Format: "bin XXXXXX" where XXXXXX matches the PIN code</div>
+                            <div id="binNameError" class="text-danger small" style="display: none;"></div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="pin_code" class="form-label">Associated PIN Code</label>
+                            <input type="text" class="form-control" id="pin_code" name="pin_code" placeholder="e.g., 673303" maxlength="6" pattern="\d{6}" title="PIN Code must be exactly 6 digits starting with 673." required>
+                            <div class="form-text">Must be 6 digits starting with "673"</div>
+                            <div id="pinCodeError" class="text-danger small" style="display: none;"></div>
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary" id="createBinBtn">Create Bin</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Column for displaying existing bins -->
+        <div class="col-md-8">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <h3 class="mb-1"><i class="fas fa-archive me-2"></i>My Sorting Bins</h3>
+                    <p class="text-muted mb-0"><i class="fas fa-user me-1"></i>These bins are private to your account</p>
+                </div>
+                {% if bin_list %}
+                <div>
+                    <form action="{{ url_for('remove_all_bins') }}" method="POST" style="display:inline;" id="removeAllForm">
+                        <button type="button" class="btn btn-outline-danger btn-sm" onclick="confirmRemoveAll()">
+                            <i class="fas fa-trash-alt me-1"></i>Remove All Bins
+                        </button>
+                    </form>
+                </div>
+                {% endif %}
+            </div>
+            
+            <!-- Display Flash Messages for success or errors -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show text-center auto-dismiss-alert" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <div class="bins-container">
+                <!-- Permanent Error Bin -->
+                <div class="bin-item error-bin" data-error-bin-id="{{ error_bin_id }}">
+                    <div class="bin-3d">
+                        <div class="bin-front error-bin-front">
+                            <div class="bin-label">
+                                <div class="bin-name">ERROR BIN</div>
+                                <div class="bin-pin">PIN: 0</div>
+                            </div>
+                            <div class="bin-opening"></div>
+                        </div>
+                        <div class="bin-top error-bin-top"></div>
+                        <div class="bin-side error-bin-side"></div>
+                    </div>
+                    <div class="bin-controls">
+                        <button class="btn btn-sm btn-warning me-2 btn-view-error-bin" title="View error items" data-bin-id="{{ error_bin_id }}">
+                            <i class="fas fa-exclamation-triangle"></i> View Errors
+                        </button>
+                        <span class="badge bg-danger">Permanent</span>
+                    </div>
+                </div>
+
+                {% for bin in bin_list %}
+                <div class="bin-item">
+                    <div class="bin-3d">
+                        <div class="bin-front">
+                            <div class="bin-label">
+                                <div class="bin-name">{{ bin.bin_name }}</div>
+                                <div class="bin-pin">PIN: {{ bin.pin }}</div>
+                            </div>
+                            <div class="bin-opening"></div>
+                        </div>
+                        <div class="bin-top"></div>
+                        <div class="bin-side"></div>
+                    </div>
+                    <div class="bin-controls">
+                        <button type="button" class="btn btn-sm btn-success me-2 btn-view-bin" title="View contents" data-bin-id="{{ bin.bin_id }}">
+                            <i class="fas fa-eye"></i> View
+                        </button>
+                        <!-- Form for the remove button to securely POST -->
+                        <form action="{{ url_for('remove_bin', bin_id=bin.bin_id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to remove this bin?');">
+                            <button type="submit" class="btn btn-sm btn-danger" title="Remove bin">
+                                <i class="fas fa-trash"></i> Remove
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                {% else %}
+                <div class="no-bins-message">
+                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">No personal sorting bins created yet</h5>
+                    <p class="text-muted">Create your first bin to start organizing your mail sorting. Your bins are private and only visible to you.</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal for bin contents -->
+<div class="modal fade" id="binContentsModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content" id="bin-contents-modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Loading...</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body text-center">
+        <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+/* 3D Bin Styling - Fixed and Straightened */
+.bins-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 30px;
+    padding: 20px 0;
+}
+
+.bin-item {
+    position: relative;
+    margin-bottom: 20px;
+}
+
+.bin-3d {
+    position: relative;
+    width: 180px;
+    height: 220px;
+    transform-style: preserve-3d;
+    transform: perspective(1000px) rotateX(-2deg) rotateY(3deg);
+    transition: transform 0.3s ease;
+    cursor: pointer;
+}
+
+.bin-3d:hover {
+    transform: perspective(1000px) rotateX(-1deg) rotateY(5deg) scale(1.02);
+}
+
+/* Front face of the bin - Made completely straight */
+.bin-front {
+    position: absolute;
+    width: 180px;
+    height: 220px;
+    background: linear-gradient(180deg, #4a90e2 0%, #357abd 100%);
+    border: none;
+    border-radius: 0;
+    box-shadow: 
+        0 8px 25px rgba(0,0,0,0.2),
+        inset 0 1px 0 rgba(255,255,255,0.2);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 18px;
+}
+
+/* Top face of the bin - Completely flat */
+.bin-top {
+    position: absolute;
+    width: 180px;
+    height: 45px;
+    background: linear-gradient(180deg, #5ba0f2 0%, #4a90e2 100%);
+    border: none;
+    border-radius: 0;
+    transform: rotateX(90deg) translateZ(22px);
+    box-shadow: 0 0 15px rgba(0,0,0,0.15);
+}
+
+/* Side face of the bin - Hidden to remove vertical line */
+.bin-side {
+    display: none;
+}
+
+/* Error Bin Styling */
+.error-bin-front {
+    background: linear-gradient(180deg, #e53e3e 0%, #c53030 100%) !important;
+    border: none !important;
+    border-radius: 0 !important;
+    animation: errorPulse 2s infinite alternate;
+}
+
+.error-bin-top {
+    background: linear-gradient(180deg, #fc8181 0%, #e53e3e 100%) !important;
+    border: none !important;
+    border-radius: 0 !important;
+}
+
+.error-bin-side {
+    display: none;
+}
+
+@keyframes errorPulse {
+    from { box-shadow: 0 8px 25px rgba(229,62,62,0.2), inset 0 1px 0 rgba(255,255,255,0.2); }
+    to { box-shadow: 0 8px 25px rgba(229,62,62,0.4), inset 0 1px 0 rgba(255,255,255,0.2); }
+}
+
+/* Bin label area - Completely flat design */
+.bin-label {
+    background: rgba(255,255,255,0.95);
+    border-radius: 0;
+    padding: 12px;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    border: none;
+}
+
+.bin-name {
+    font-weight: bold;
+    font-size: 14px;
+    color: #2d3748;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.bin-pin {
+    font-size: 12px;
+    color: #4a5568;
+    font-family: 'Courier New', monospace;
+    background: #f7fafc;
+    padding: 4px 8px;
+    border-radius: 0;
+    border: none;
+}
+
+/* Bin opening slot - Completely rectangular */
+.bin-opening {
+    width: 130px;
+    height: 25px;
+    background: linear-gradient(to bottom, #1a202c, #2d3748);
+    border-radius: 0;
+    box-shadow: 
+        inset 0 4px 12px rgba(0,0,0,0.7),
+        0 1px 3px rgba(0,0,0,0.3);
+    margin: 0 auto;
+    position: relative;
+}
+
+.bin-opening::before {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 8px;
+    right: 8px;
+    height: 1px;
+    background: linear-gradient(to right, transparent, rgba(255,255,255,0.2), transparent);
+    border-radius: 0;
+}
+
+/* Bin controls */
+.bin-controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    margin-top: 15px;
+    padding: 12px;
+    background: rgba(255,255,255,0.95);
+    border-radius: 0;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    backdrop-filter: blur(10px);
+}
+
+.bin-controls .btn {
+    border-radius: 0;
+    font-weight: 600;
+    padding: 6px 12px;
+    font-size: 12px;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.bin-controls .btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.bin-controls .badge {
+    font-size: 10px;
+    padding: 4px 8px;
+    border-radius: 0;
+}
+
+/* No bins message */
+.no-bins-message {
+    text-align: center;
+    padding: 50px 20px;
+    background: linear-gradient(145deg, #f7fafc, #edf2f7);
+    border-radius: 0;
+    border: 2px dashed #cbd5e0;
+    width: 100%;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .bins-container {
+        justify-content: center;
+    }
+    
+    .bin-3d {
+        width: 150px;
+        height: 180px;
+        transform: perspective(800px) rotateX(-3deg) rotateY(5deg);
+    }
+    
+    .bin-front {
+        width: 150px;
+        height: 180px;
+        padding: 12px;
+    }
+    
+    .bin-top {
+        width: 150px;
+        height: 35px;
+    }
+    
+    .bin-side {
+        width: 35px;
+        height: 180px;
+        transform: rotateY(90deg) translateZ(75px);
+    }
+    
+    .bin-opening {
+        width: 100px;
+        height: 20px;
+    }
+}
+
+/* Animation for new bins */
+@keyframes binAppear {
+    from {
+        opacity: 0;
+        transform: perspective(1000px) rotateX(-15deg) rotateY(25deg) scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: perspective(1000px) rotateX(-5deg) rotateY(8deg) scale(1);
+    }
+}
+
+.bin-item {
+    animation: binAppear 0.6s ease-out;
+}
+
+/* Bin color variations - Completely straight gradients */
+.bin-item:nth-child(2n) .bin-front {
+    background: linear-gradient(180deg, #48bb78 0%, #38a169 100%);
+    border: none;
+}
+
+.bin-item:nth-child(2n) .bin-top {
+    background: linear-gradient(180deg, #68d391 0%, #48bb78 100%);
+    border: none;
+}
+
+.bin-item:nth-child(2n) .bin-side {
+    background: linear-gradient(180deg, #38a169 0%, #2f855a 100%);
+    border: none;
+}
+
+.bin-item:nth-child(3n) .bin-front {
+    background: linear-gradient(180deg, #ed8936 0%, #dd6b20 100%);
+    border: none;
+}
+
+.bin-item:nth-child(3n) .bin-top {
+    background: linear-gradient(180deg, #f6ad55 0%, #ed8936 100%);
+    border: none;
+}
+
+.bin-item:nth-child(3n) .bin-side {
+    background: linear-gradient(180deg, #dd6b20 0%, #c05621 100%);
+    border: none;
+}
+
+.bin-item:nth-child(4n) .bin-front {
+    background: linear-gradient(180deg, #9f7aea 0%, #805ad5 100%);
+    border: none;
+}
+
+.bin-item:nth-child(4n) .bin-top {
+    background: linear-gradient(180deg, #b794f6 0%, #9f7aea 100%);
+    border: none;
+}
+
+.bin-item:nth-child(4n) .bin-side {
+    background: linear-gradient(180deg, #805ad5 0%, #6b46c1 100%);
+    border: none;
+}
+
+/* Error bin always first, so override nth-child for error bin */
+.error-bin .bin-front {
+    background: linear-gradient(180deg, #e53e3e 0%, #c53030 100%) !important;
+    border: none !important;
+}
+</style>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // ==========================================================
+    // SECTION 1: FUNCTION DEFINITIONS
+    // We define all our functions first so they are available to be called.
+    // ==========================================================
+
+    /**
+     * Fetches bin contents from the server and displays them in a modal.
+     * @param {number} binId The ID of the bin to display.
+     */
+    function openBinModal(binId) {
+        const modalEl = document.getElementById('binContentsModal');
+        const modal = new bootstrap.Modal(modalEl);
+        const contentEl = document.getElementById('bin-contents-modal-content');
+        
+        // Show a loading state inside the modal
+        contentEl.innerHTML = `<div class='modal-header'><h5 class='modal-title'>Loading...</h5><button type='button' class='btn-close' data-bs-dismiss='modal'></button></div><div class='modal-body text-center p-4'><div class="spinner-border text-primary"></div></div>`;
+        modal.show();
+
+        // Fetch the bin contents HTML fragment from the backend
+        fetch(`/staff/bin_contents_fragment/${binId}`)
+            .then(response => {
+                if (!response.ok) throw new Error('Network response was not ok');
+                return response.text();
+            })
+            .then(html => {
+                contentEl.innerHTML = html;
+                // Important: After loading new content, re-bind the 'more/less' links
+                bindAddressToggles();
+            })
+            .catch(err => {
+                contentEl.innerHTML = `<div class='modal-header'><h5 class='modal-title'>Error</h5><button type='button' class='btn-close' data-bs-dismiss='modal'></button></div><div class='modal-body p-4 text-danger'>Error loading bin contents. Please try again.</div>`;
+            });
+    }
+
+    /**
+     * Attaches click listeners to the 'more' and 'less' links for long addresses
+     * inside the bin contents modal.
+     */
+    function bindAddressToggles() {
+        const modalBody = document.querySelector('#bin-contents-modal-content');
+        if (modalBody) {
+            // Use event delegation for robustness
+            modalBody.addEventListener('click', function(event) {
+                if (event.target.classList.contains('toggle-address')) {
+                    event.preventDefault();
+                    const id = event.target.getAttribute('data-target');
+                    document.getElementById('addr-short-' + id)?.classList.toggle('d-none');
+                    document.getElementById('addr-full-' + id)?.classList.toggle('d-none');
+                }
+            });
+        }
+    }
+    
+    /**
+     * Shows a confirmation dialog before submitting the "Remove All" form.
+     */
+    function confirmRemoveAll() {
+        if (confirm('Are you sure you want to remove ALL your bins? This action cannot be undone.')) {
+            document.getElementById('removeAllForm').submit();
+        }
+    }
+
+    // ==========================================================
+    // SECTION 2: MAIN SCRIPT EXECUTION
+    // This runs after the entire page is loaded.
+    // ==========================================================
+    document.addEventListener('DOMContentLoaded', function() {
+        
+        // --- Feature: Auto-dismiss flash messages ---
+        const alerts = document.querySelectorAll('.auto-dismiss-alert');
+        alerts.forEach(alert => {
+            setTimeout(() => {
+                // Use Bootstrap's Alert instance to properly close with animation
+                const bsAlert = new bootstrap.Alert(alert);
+                bsAlert.close();
+            }, 5000);
+        });
+        
+        // --- Feature: Real-time validation for the "Create Bin" form ---
+        const binNameInput = document.getElementById('bin_name');
+        const pinCodeInput = document.getElementById('pin_code');
+        const createBinBtn = document.getElementById('createBinBtn');
+        const binNameError = document.getElementById('binNameError');
+        const pinCodeError = document.getElementById('pinCodeError');
+        
+        // Your validation functions are perfect, so we keep them as is.
+        function validateBinName() {
+            const binName = binNameInput.value.trim().toLowerCase();
+            const binNamePattern = /^bin\s+(\d{6})$/;
+            const match = binName.match(binNamePattern);
+            if (!binName) { binNameError.style.display = 'none'; return false; }
+            if (!match) {
+                binNameError.textContent = 'Format: "bin XXXXXX"';
+                binNameError.style.display = 'block';
+                return false;
+            }
+            const binNumber = match[1];
+            const pinCode = pinCodeInput.value.trim();
+            if (pinCode && binNumber !== pinCode) {
+                binNameError.textContent = `Must match PIN code`;
+                binNameError.style.display = 'block';
+                return false;
+            }
+            binNameError.style.display = 'none';
+            return true;
+        }
+        
+        function validatePinCode() {
+            const pinCode = pinCodeInput.value.trim();
+            if (!pinCode) { pinCodeError.style.display = 'none'; return false; }
+            if (!/^\d{6}$/.test(pinCode)) {
+                pinCodeError.textContent = 'Must be exactly 6 digits';
+                pinCodeError.style.display = 'block';
+                return false;
+            }
+            if (!pinCode.startsWith('673')) {
+                pinCodeError.textContent = 'Must start with "673"';
+                pinCodeError.style.display = 'block';
+                return false;
+            }
+            pinCodeError.style.display = 'none';
+            return true;
+        }
+        
+        function updateFormValidation() {
+            const binNameValid = validateBinName();
+            const pinCodeValid = validatePinCode();
+            createBinBtn.disabled = !(binNameValid && pinCodeValid);
+        }
+        
+        // Attach validation listeners
+        binNameInput.addEventListener('input', updateFormValidation);
+        pinCodeInput.addEventListener('input', () => {
+            updateFormValidation();
+            validateBinName(); // Re-check name in case it now matches the new PIN
+        });
+        
+        // Your auto-formatting listeners are perfect, we keep them.
+        binNameInput.addEventListener('input', function() {
+            let value = this.value.toLowerCase();
+            if (/^\d/.test(value) && !value.startsWith('bin ')) {
+                this.value = 'bin ' + value;
+            }
+            const match = this.value.match(/^bin\s+(\d{6})$/);
+            if (match && !pinCodeInput.value) {
+                pinCodeInput.value = match[1];
+                updateFormValidation();
+            }
+        });
+        
+        pinCodeInput.addEventListener('input', function() {
+            const pinCode = this.value.trim();
+            if (/^\d{6}$/.test(pinCode) && !binNameInput.value.trim()) {
+                binNameInput.value = `bin ${pinCode}`;
+                updateFormValidation();
+            }
+        });
+        
+        // Initial check
+        updateFormValidation();
+
+        // --- Feature: Event Delegation for ALL "View" buttons ---
+        const binsContainer = document.querySelector('.bins-container');
+        if (binsContainer) {
+            binsContainer.addEventListener('click', function(event) {
+                // This checks if the clicked element (or its parent) is a view button
+                const viewButton = event.target.closest('.btn-view-bin, .btn-view-error-bin');
+                
+                if (viewButton) {
+                    const binId = viewButton.dataset.binId;
+                    if (binId) {
+                        openBinModal(binId); // Call our master function
+                    }
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

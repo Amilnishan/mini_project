@@ -26,7 +26,7 @@
       <div class="d-flex align-items-center gap-2">
         <a class="btn btn-outline-primary admin-nav-btn" href="{{ url_for('admin_dashboard') }}">Home</a>
         <a class="btn btn-outline-success admin-nav-btn" href="{{ url_for('manage_staff') }}">Manage Staff</a>
-        <a class="btn btn-outline-warning admin-nav-btn" href="#">View Sorted History</a>
+        <a class="btn btn-outline-warning admin-nav-btn" href="{{ url_for('admin_history') }}">View Sorted History</a>
         <a class="btn btn-primary text-white" href="{{ url_for('logout') }}">Logout</a>
       </div>
   <style>

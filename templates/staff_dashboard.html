@@ -1,13 +1,264 @@
 <!-- This page extends the staff_base.html file -->
 {% extends "staff_base.html" %}
 
-{% block title %}Staff Home{% endblock %}
+{% block title %}Staff Dashboard{% endblock %}
 
 {% block content %}
-  <div class="p-5 mb-4 staff-animated-bg text-center">
-    <div class="container-fluid py-5">
-      <h1 class="display-5 fw-bold">Welcome, {{ session.username if session.username else 'Staff' }}!</h1>
-      <p class="fs-4">This is your main dashboard. Use the navigation bar above to start sorting new mail.</p>
+<div class="container-fluid">
+  <!-- Welcome Hero Section -->
+  <div class="p-5 mb-4 staff-animated-bg text-center text-white">
+    <div class="container-fluid py-4">
+      <div class="row align-items-center">
+        <div class="col-lg-8 mx-auto">
+          <i class="fas fa-mail-bulk mb-3" style="font-size: 3rem; opacity: 0.9;"></i>
+          <h1 class="display-4 fw-bold mb-3">Welcome, {{ session.username if session.username else 'Staff' }}!</h1>
+          <p class="fs-5 mb-4 opacity-90">Postal Sorting Dashboard - Process mail efficiently with AI-powered OCR technology</p>
+          <div class="d-flex justify-content-center gap-3 flex-wrap">
+            <span class="badge bg-light text-dark px-3 py-2 fs-6">
+              <i class="fas fa-user-check me-2"></i>Staff Member
+            </span>
+            <span class="badge bg-light text-dark px-3 py-2 fs-6">
+              <i class="fas fa-clock me-2"></i><span id="currentDate">Loading...</span>
+            </span>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
+
+  <!-- Quick Action Cards -->
+  <div class="row mb-5">
+    <div class="col-lg-6 mb-4">
+      <div class="card border-0 shadow-sm h-100 main-action-card">
+        <div class="card-body text-center p-5">
+          <div class="action-icon bg-primary mb-4">
+            <i class="fas fa-camera text-white"></i>
+          </div>
+          <h3 class="fw-bold text-primary mb-3">Start Live Capture</h3>
+          <p class="text-muted mb-4">Use your camera to capture and process postal addresses with AI-powered OCR technology</p>
+          <a href="{{ url_for('capture_page') }}" class="btn btn-primary btn-lg px-5 py-3">
+            <i class="fas fa-play me-2"></i>Begin Sorting
+          </a>
+          <div class="mt-3">
+            <small class="text-muted">
+              <i class="fas fa-magic me-1"></i>
+            </small>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-6 mb-4">
+      <div class="card border-0 shadow-sm h-100 secondary-action-card">
+        <div class="card-body text-center p-5">
+          <div class="action-icon bg-success mb-4">
+            <i class="fas fa-history text-white"></i>
+          </div>
+          <h3 class="fw-bold text-success mb-3">View Processing History</h3>
+          <p class="text-muted mb-4">Review previously processed parcels and their PIN codes for quality control</p>
+          <a href="{{ url_for('view_sorted_history') }}" class="btn btn-success btn-lg px-5 py-3">
+            <i class="fas fa-list me-2"></i>View History
+          </a>
+          <div class="mt-3">
+            <small class="text-muted">
+              <i class="fas fa-clock me-1"></i>
+            </small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Features Overview -->
+  <div class="row mb-5">
+    <div class="col-12">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-gradient-primary text-white">
+          <h5 class="mb-0"><i class="fas fa-star me-2"></i>System Features</h5>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-lg-4 col-md-6 mb-4">
+              <div class="feature-item text-center p-4">
+                <i class="fas fa-eye text-primary mb-3" style="font-size: 2.5rem;"></i>
+                <h5 class="fw-bold">Smart OCR</h5>
+                <p class="text-muted">Advanced text recognition with EasyOCR and Tesseract for maximum accuracy</p>
+              </div>
+            </div>
+            <div class="col-lg-4 col-md-6 mb-4">
+              <div class="feature-item text-center p-4">
+                <i class="fas fa-mobile-alt text-success mb-3" style="font-size: 2.5rem;"></i>
+                <h5 class="fw-bold">Live Camera</h5>
+                <p class="text-muted">Real-time camera interface with capture guides for optimal image quality</p>
+              </div>
+            </div>
+            <div class="col-lg-4 col-md-6 mb-4">
+              <div class="feature-item text-center p-4">
+                <i class="fas fa-edit text-warning mb-3" style="font-size: 2.5rem;"></i>
+                <h5 class="fw-bold">Manual Entry</h5>
+                <p class="text-muted">Backup manual PIN code entry for cases where OCR needs assistance</p>
+              </div>
+            </div>
+            <div class="col-lg-4 col-md-6 mb-4">
+              <div class="feature-item text-center p-4">
+                <i class="fas fa-database text-info mb-3" style="font-size: 2.5rem;"></i>
+                <h5 class="fw-bold">Auto Storage</h5>
+                <p class="text-muted">Automatic database storage of all processed parcels and extracted data</p>
+              </div>
+            </div>
+            <div class="col-lg-4 col-md-6 mb-4">
+              <div class="feature-item text-center p-4">
+                <i class="fas fa-tachometer-alt text-purple mb-3" style="font-size: 2.5rem;"></i>
+                <h5 class="fw-bold">Real-time Processing</h5>
+                <p class="text-muted">Instant processing and feedback for efficient workflow management</p>
+              </div>
+            </div>
+            <div class="col-lg-4 col-md-6 mb-4">
+              <div class="feature-item text-center p-4">
+                <i class="fas fa-shield-alt text-secondary mb-3" style="font-size: 2.5rem;"></i>
+                <h5 class="fw-bold">Secure Access</h5>
+                <p class="text-muted">Role-based authentication ensures data security and access control</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Process Guidelines -->
+  <div class="row">
+    <div class="col-lg-8">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-gradient-success text-white">
+          <h5 class="mb-0"><i class="fas fa-lightbulb me-2"></i>Best Practices</h5>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-6">
+              <h6 class="fw-bold text-success mb-3">📷 Camera Tips</h6>
+              <ul class="list-unstyled">
+                <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Position text within the green guide</li>
+                <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Ensure good lighting conditions</li>
+                <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Hold camera steady for clear focus</li>
+                <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Avoid shadows and reflections</li>
+              </ul>
+            </div>
+            <div class="col-md-6">
+              <h6 class="fw-bold text-info mb-3">🎯 OCR Accuracy</h6>
+              <ul class="list-unstyled">
+                <li class="mb-2"><i class="fas fa-check text-info me-2"></i>Clear, printed text works best</li>
+                <li class="mb-2"><i class="fas fa-check text-info me-2"></i>Capture one address at a time</li>
+                <li class="mb-2"><i class="fas fa-check text-info me-2"></i>Use manual entry as backup</li>
+                <li class="mb-2"><i class="fas fa-check text-info me-2"></i>Review results before processing</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-4">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-gradient-warning text-white">
+          <h5 class="mb-0"><i class="fas fa-question-circle me-2"></i>Need Help?</h5>
+        </div>
+        <div class="card-body text-center">
+          <i class="fas fa-headset text-warning mb-3" style="font-size: 3rem;"></i>
+          <h6 class="fw-bold">Support Available</h6>
+          <p class="text-muted mb-3">Contact your administrator if you encounter any issues or need assistance with the system.</p>
+          <button class="btn btn-warning btn-sm px-4" disabled>
+            <i class="fas fa-phone me-2"></i>Contact Support
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.main-action-card, .secondary-action-card {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  border-radius: 15px;
+}
+
+.main-action-card:hover, .secondary-action-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 15px 35px rgba(0,0,0,0.1) !important;
+}
+
+.action-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+  font-size: 2rem;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+.feature-item {
+  border-radius: 10px;
+  transition: background-color 0.3s ease, transform 0.3s ease;
+}
+
+.feature-item:hover {
+  background-color: rgba(0,0,0,0.03);
+  transform: translateY(-3px);
+}
+
+.bg-gradient-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.bg-gradient-success {
+  background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+}
+
+.bg-gradient-warning {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.text-purple {
+  color: #667eea !important;
+}
+
+.card {
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.btn {
+  border-radius: 8px;
+  font-weight: 600;
+}
+
+.btn-lg {
+  font-size: 1.1rem;
+}
+
+.list-unstyled li {
+  padding: 0.25rem 0;
+}
+</style>
+
+<script>
+// Display current date
+document.addEventListener('DOMContentLoaded', function() {
+    const currentDateElement = document.getElementById('currentDate');
+    const now = new Date();
+    
+    // Format the date as "Month DD, YYYY"
+    const options = { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+    };
+    
+    const formattedDate = now.toLocaleDateString('en-US', options);
+    currentDateElement.textContent = formattedDate;
+});
+</script>
 {% endblock %}

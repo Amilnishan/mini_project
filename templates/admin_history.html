@@ -1,0 +1,86 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Full Sorting History{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold"><i class="fas fa-book me-2"></i>Full Sorting History</h2>
+            <p class="text-muted mb-0">A complete log of all sorting activities by all staff members.</p>
+        </div>
+    </div>
+
+    <!-- Filter Form Card -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('admin_history') }}">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-4">
+                        <label for="start_date" class="form-label fw-semibold">Start Date</label>
+                        <!-- Pre-fill the value if it was provided in the request -->
+                        <input type="date" class="form-control" id="start_date" name="start_date" value="{{ request.args.get('start_date', '') }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label for="end_date" class="form-label fw-semibold">End Date</label>
+                        <input type="date" class="form-control" id="end_date" name="end_date" value="{{ request.args.get('end_date', '') }}">
+                    </div>
+                    <div class="col-md-4">
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-filter me-2"></i>Apply Filter
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- History Table Card -->
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            {% if history_items %}
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped mb-0 align-middle">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>SL. No</th>
+                                <th>Staff Member</th>
+                                <th>Parcel ID</th>
+                                <th>Sorted Into Bin</th>
+                                <th>Associated PIN</th>
+                                <th>Time Sorted</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in history_items %}
+                                <tr>
+                                    <td>{{ loop.index }}</td>
+                                    <td><i class="fas fa-user me-2"></i>{{ item.staff_name }}</td>
+                                    <td><strong>{{ item.parcel_id }}</strong></td>
+                                    <td>{{ item.bin_name }}</td>
+                                    <td><span class="badge bg-primary">{{ item.pin }}</span></td>
+                                    <td><small class="text-success">{{ item.sorted_time.strftime('%Y-%m-%d %H:%M:%S') }}</small></td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center p-5">
+                    <i class="fas fa-search fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">No sorting history found.</h5>
+                    <p class="text-muted">No items match the current filter, or no items have been sorted yet.</p>
+                </div>
+            {% endif %}
+        </div>
+        {% if history_items %}
+        <div class="card-footer text-muted small">
+            Displaying {{ history_items|length }} records.
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
