@@ -1,54 +1,17 @@
 {% extends "staff_base.html" %}
 
-{% block title %}Manage Bins{% endblock %}
+{% block title %}View Bins{% endblock %}
 
 {% block content %}
 <div class="container">
-    <div class="row">
-        <!-- Column for creating a new bin -->
-        <div class="col-md-4">
-            <div class="card shadow-sm">
-                <div class="card-header">
-                    <h5 class="mb-0">Create New Bin</h5>
-                </div>
-                <div class="card-body">
-                    <form method="POST" action="{{ url_for('view_bins') }}" id="binForm">
-                        <div class="mb-3">
-                            <label for="bin_name" class="form-label">Bin Name</label>
-                            <input type="text" class="form-control" id="bin_name" name="bin_name" placeholder="e.g., bin 673303" required>
-                            <div class="form-text">Format: "bin XXXXXX" where XXXXXX matches the PIN code</div>
-                            <div id="binNameError" class="text-danger small" style="display: none;"></div>
-                        </div>
-                        <div class="mb-3">
-                            <label for="pin_code" class="form-label">Associated PIN Code</label>
-                            <input type="text" class="form-control" id="pin_code" name="pin_code" placeholder="e.g., 673303" maxlength="6" pattern="\d{6}" title="PIN Code must be exactly 6 digits starting with 673." required>
-                            <div class="form-text">Must be 6 digits starting with "673"</div>
-                            <div id="pinCodeError" class="text-danger small" style="display: none;"></div>
-                        </div>
-                        <div class="d-grid">
-                            <button type="submit" class="btn btn-primary" id="createBinBtn">Create Bin</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-
-        <!-- Column for displaying existing bins -->
-        <div class="col-md-8">
-            <div class="d-flex justify-content-between align-items-center mb-3">
+    <div class="row justify-content-center">
+        <!-- Single column for displaying bins -->
+        <div class="col-md-10">
+            <div class="d-flex justify-content-between align-items-center mb-4">
                 <div>
                     <h3 class="mb-1"><i class="fas fa-archive me-2"></i>My Sorting Bins</h3>
-                    <p class="text-muted mb-0"><i class="fas fa-user me-1"></i>These bins are private to your account</p>
+                    <p class="text-muted mb-0"><i class="fas fa-info-circle me-1"></i>View and use your assigned sorting bins</p>
                 </div>
-                {% if bin_list %}
-                <div>
-                    <form action="{{ url_for('remove_all_bins') }}" method="POST" style="display:inline;" id="removeAllForm">
-                        <button type="button" class="btn btn-outline-danger btn-sm" onclick="confirmRemoveAll()">
-                            <i class="fas fa-trash-alt me-1"></i>Remove All Bins
-                        </button>
-                    </form>
-                </div>
-                {% endif %}
             </div>
             
             <!-- Display Flash Messages for success or errors -->
@@ -62,6 +25,20 @@
                     {% endfor %}
                 {% endif %}
             {% endwith %}
+
+            <!-- Information Card -->
+            <div class="card border-info mb-4">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>Information</h6>
+                </div>
+                <div class="card-body">
+                    <p class="mb-0">
+                        <strong>Note:</strong> Bins are managed by administrators. 
+                        You can view and use your assigned bins below. 
+                        Contact your administrator if you need new bins or changes to existing ones.
+                    </p>
+                </div>
+            </div>
 
             <div class="bins-container">
                 <!-- Permanent Error Bin -->
@@ -81,7 +58,6 @@
                         <button class="btn btn-sm btn-warning me-2 btn-view-error-bin" title="View error items" data-bin-id="{{ error_bin_id }}">
                             <i class="fas fa-exclamation-triangle"></i> View Errors
                         </button>
-                        <span class="badge bg-danger">Permanent</span>
                     </div>
                 </div>
 
@@ -99,22 +75,16 @@
                         <div class="bin-side"></div>
                     </div>
                     <div class="bin-controls">
-                        <button type="button" class="btn btn-sm btn-success me-2 btn-view-bin" title="View contents" data-bin-id="{{ bin.bin_id }}">
-                            <i class="fas fa-eye"></i> View
+                        <button type="button" class="btn btn-sm btn-success btn-view-bin" title="View contents" data-bin-id="{{ bin.bin_id }}">
+                            <i class="fas fa-eye"></i> View Contents
                         </button>
-                        <!-- Form for the remove button to securely POST -->
-                        <form action="{{ url_for('remove_bin', bin_id=bin.bin_id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to remove this bin?');">
-                            <button type="submit" class="btn btn-sm btn-danger" title="Remove bin">
-                                <i class="fas fa-trash"></i> Remove
-                            </button>
-                        </form>
                     </div>
                 </div>
                 {% else %}
-                <div class="no-bins-message">
+                <div class="no-bins-message text-center p-5">
                     <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
-                    <h5 class="text-muted">No personal sorting bins created yet</h5>
-                    <p class="text-muted">Create your first bin to start organizing your mail sorting. Your bins are private and only visible to you.</p>
+                    <h5 class="text-muted">No bins assigned yet</h5>
+                    <p class="text-muted">Your administrator hasn't assigned any bins to your account yet. Contact your administrator to request bins for mail sorting.</p>
                 </div>
                 {% endfor %}
             </div>
@@ -506,11 +476,15 @@
         });
         
         // --- Feature: Real-time validation for the "Create Bin" form ---
+        // Only run form validation if form elements exist (admin page)
         const binNameInput = document.getElementById('bin_name');
         const pinCodeInput = document.getElementById('pin_code');
         const createBinBtn = document.getElementById('createBinBtn');
         const binNameError = document.getElementById('binNameError');
         const pinCodeError = document.getElementById('pinCodeError');
+        
+        // Only add form validation if all form elements exist
+        if (binNameInput && pinCodeInput && createBinBtn && binNameError && pinCodeError) {
         
         // Your validation functions are perfect, so we keep them as is.
         function validateBinName() {
@@ -587,22 +561,66 @@
         
         // Initial check
         updateFormValidation();
+        } else {
+            // Form elements not found - skip form validation setup
+        }
 
         // --- Feature: Event Delegation for ALL "View" buttons ---
-        const binsContainer = document.querySelector('.bins-container');
-        if (binsContainer) {
-            binsContainer.addEventListener('click', function(event) {
-                // This checks if the clicked element (or its parent) is a view button
-                const viewButton = event.target.closest('.btn-view-bin, .btn-view-error-bin');
-                
-                if (viewButton) {
-                    const binId = viewButton.dataset.binId;
-                    if (binId) {
-                        openBinModal(binId); // Call our master function
+        // Wait a bit more and try multiple times to find the container
+        function attachButtonListeners() {
+            const binsContainer = document.querySelector('.bins-container');
+            
+            if (binsContainer) {
+                binsContainer.addEventListener('click', function(event) {
+                    // This checks if the clicked element (or its parent) is a view button
+                    const viewButton = event.target.closest('.btn-view-bin, .btn-view-error-bin');
+                    
+                    if (viewButton) {
+                        const binId = viewButton.dataset.binId;
+                        
+                        if (binId) {
+                            openBinModal(binId); // Call our master function
+                        }
                     }
-                }
+                });
+                return true;
+            }
+            return false;
+        }
+        
+        // Alternative approach: Direct button listeners
+        function attachDirectButtonListeners() {
+            // Find all view buttons
+            const viewBinButtons = document.querySelectorAll('.btn-view-bin');
+            const viewErrorButtons = document.querySelectorAll('.btn-view-error-bin');
+            
+            // Attach listeners to regular bin buttons
+            viewBinButtons.forEach(function(button) {
+                button.addEventListener('click', function(event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const binId = this.dataset.binId;
+                    if (binId) {
+                        openBinModal(binId);
+                    }
+                });
+            });
+            
+            // Attach listeners to error bin buttons
+            viewErrorButtons.forEach(function(button) {
+                button.addEventListener('click', function(event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const binId = this.dataset.binId;
+                    if (binId) {
+                        openBinModal(binId);
+                    }
+                });
             });
         }
+        
+        // Try direct button listeners as backup
+        attachDirectButtonListeners();
     });
 </script>
 {% endblock %}

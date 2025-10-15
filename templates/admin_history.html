@@ -46,23 +46,23 @@
                     <table class="table table-hover table-striped mb-0 align-middle">
                         <thead class="table-dark">
                             <tr>
-                                <th>SL. No</th>
-                                <th>Staff Member</th>
-                                <th>Parcel ID</th>
-                                <th>Sorted Into Bin</th>
-                                <th>Associated PIN</th>
-                                <th>Time Sorted</th>
+                                <th class="text-center">SL. No</th>
+                                <th class="text-center">Staff Member</th>
+                                <th class="text-center">Parcel ID</th>
+                                <th class="text-center">Sorted Into Bin</th>
+                                <th class="text-center">Associated PIN</th>
+                                <th class="text-center">Time Sorted</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for item in history_items %}
                                 <tr>
-                                    <td>{{ loop.index }}</td>
-                                    <td><i class="fas fa-user me-2"></i>{{ item.staff_name }}</td>
-                                    <td><strong>{{ item.parcel_id }}</strong></td>
-                                    <td>{{ item.bin_name }}</td>
-                                    <td><span class="badge bg-primary">{{ item.pin }}</span></td>
-                                    <td><small class="text-success">{{ item.sorted_time.strftime('%Y-%m-%d %H:%M:%S') }}</small></td>
+                                    <td class="text-center">{{ loop.index }}</td>
+                                    <td class="text-center"><i class="fas fa-user me-2"></i>{{ item.staff_name }}</td>
+                                    <td class="text-center"><strong>{{ item.parcel_id }}</strong></td>
+                                    <td class="text-center">{{ item.bin_name }}</td>
+                                    <td class="text-center"><span class="badge bg-primary">{{ item.pin }}</span></td>
+                                    <td class="text-center"><small class="text-success">{{ item.sorted_time.strftime('%Y-%m-%d %H:%M:%S') }}</small></td>
                                 </tr>
                             {% endfor %}
                         </tbody>

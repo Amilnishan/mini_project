@@ -35,24 +35,24 @@
                     <table class="table table-hover table-striped mb-0 align-middle">
                         <thead class="table-dark">
                             <tr>
-                                <th>SL. No</th>
-                                <th>Parcel ID</th>
-                                <th>Sorted Into</th>
-                                <th>Associated PIN</th>
-                                <th>Time Captured</th>
-                                <th>Time Sorted</th>
-                                <th>Captured Image</th>
+                                <th class="text-center">SL. No</th>
+                                <th class="text-center">Parcel ID</th>
+                                <th class="text-center">Sorted Into</th>
+                                <th class="text-center">Associated PIN</th>
+                                <th class="text-center">Time Captured</th>
+                                <th class="text-center">Time Sorted</th>
+                                <th class="text-center">Captured Image</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for item in sorted_items %}
                                 <tr>
-                                    <td>{{ loop.index }}</td>
-                                    <td><strong>{{ item.parcel_id }}</strong></td>
-                                    <td><i class="fas fa-box me-2"></i>{{ item.bin_name }}</td>
-                                    <td><span class="badge bg-primary">{{ item.pin }}</span></td>
-                                    <td><small class="text-muted">{{ item.upload_time.strftime('%Y-%m-%d %H:%M:%S') }}</small></td>
-                                    <td><small class="text-success">{{ item.sorted_time.strftime('%Y-%m-%d %H:%M:%S') }}</small></td>
+                                    <td class="text-center">{{ loop.index }}</td>
+                                    <td class="text-center"><strong>{{ item.parcel_id }}</strong></td>
+                                    <td class="text-center"><i class="fas fa-box me-2"></i>{{ item.bin_name }}</td>
+                                    <td class="text-center"><span class="badge bg-primary">{{ item.pin }}</span></td>
+                                    <td class="text-center"><small class="text-muted">{{ item.upload_time.strftime('%Y-%m-%d %H:%M:%S') }}</small></td>
+                                    <td class="text-center"><small class="text-success">{{ item.sorted_time.strftime('%Y-%m-%d %H:%M:%S') }}</small></td>
                                     <td>
                                         <div class="image-container position-relative" style="width: 60px; height: 60px;">
                                             <img src="/{{ item.image_path.replace('\\', '/') }}" 

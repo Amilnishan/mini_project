@@ -1,0 +1,170 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Manage Bins{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold"><i class="fas fa-boxes me-2"></i>Manage Bins</h2>
+            <p class="text-muted mb-0">Create and manage global bins accessible by all staff members</p>
+        </div>
+    </div>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show auto-dismiss-alert" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <!-- Create Bin Card -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0"><i class="fas fa-plus-circle me-2"></i>Create New Bin</h5>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('admin_manage_bins') }}">
+                <input type="hidden" name="action" value="create_bin">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label for="bin_name" class="form-label fw-semibold">Bin Name</label>
+                        <input type="text" class="form-control" id="bin_name" name="bin_name" 
+                               placeholder="e.g., bin 673303" required>
+                        <div class="form-text">Format: bin XXXXXX</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="pin_code" class="form-label fw-semibold">PIN Code</label>
+                        <input type="text" class="form-control" id="pin_code" name="pin_code" 
+                               placeholder="e.g., 673303" pattern="\d{6}" maxlength="6" required>
+                        <div class="form-text">Must start with 673</div>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary px-4">
+                            <i class="fas fa-plus me-2"></i>Create Bin  
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Bins List -->
+    <div class="mb-3">
+        <h5 class="text-muted mb-3">All Bins</h5>
+        <div class="card shadow-sm">
+            <div class="card-body p-0">
+            {% if all_bins %}
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped mb-0 align-middle">
+                        <thead class="table-dark">
+                            <tr>
+                                <th class="text-center">Bin Name</th>
+                                <th class="text-center">PIN Code</th>
+                                <th class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for bin in all_bins %}
+                                <tr>
+                                    <td class="text-center">
+                                        <span class="badge bg-info">{{ bin.bin_name }}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <code>{{ bin.pin }}</code>
+                                    </td>
+                                    <td class="text-center">
+                                        {% if bin.bin_name != 'Error Bin' %}
+                                            <form method="POST" action="{{ url_for('admin_manage_bins') }}" 
+                                                  class="d-inline" onsubmit="return confirm('Are you sure you want to delete this bin? This action cannot be undone.')">
+                                                <input type="hidden" name="action" value="delete_bin">
+                                                <input type="hidden" name="bin_id" value="{{ bin.bin_id }}">
+                                                <button type="submit" class="btn btn-danger btn-sm">
+                                                    <i class="fas fa-trash me-1"></i>Delete
+                                                </button>
+                                            </form>
+                                        {% else %}
+                                            <span class="badge bg-warning text-dark">
+                                                <i class="fas fa-shield-alt me-1"></i>Protected
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center p-5">
+                    <i class="fas fa-box-open fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">No bins created yet</h5>
+                    <p class="text-muted">Create the first bin using the form above.</p>
+                </div>
+            {% endif %}
+            </div>
+            {% if all_bins %}
+            <div class="card-footer text-muted small">
+                Displaying {{ all_bins|length }} global bins.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Information Card -->
+    <div class="card border-info mt-4">
+        <div class="card-header bg-info text-white">
+            <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>Important Information</h6>
+        </div>
+        <div class="card-body">
+            <ul class="mb-0">
+                <li><strong>Global Bins:</strong> Admin-created bins are accessible by all staff members</li>
+                <li><strong>Bin Naming:</strong> All bins must follow the format "bin XXXXXX" where X are digits</li>
+                <li><strong>PIN Codes:</strong> Must be exactly 6 digits starting with "673"</li>
+                <li><strong>Error Bins:</strong> Automatically created for each staff member and cannot be deleted</li>
+                <li><strong>Admin Access:</strong> You can create and delete global bins but cannot view their contents</li>
+                <li><strong>Staff Access:</strong> Staff can view and use all global bins plus their personal error bins</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<script>
+// Auto-sync bin name and PIN code
+document.addEventListener('DOMContentLoaded', function() {
+    const pinInput = document.getElementById('pin_code');
+    const binNameInput = document.getElementById('bin_name');
+    
+    pinInput.addEventListener('input', function() {
+        const pinValue = this.value;
+        if (pinValue.length === 6 && /^\d{6}$/.test(pinValue)) {
+            binNameInput.value = `bin ${pinValue}`;
+        }
+    });
+    
+    binNameInput.addEventListener('input', function() {
+        const binValue = this.value.toLowerCase();
+        const match = binValue.match(/^bin\s+(\d{6})$/);
+        if (match) {
+            pinInput.value = match[1];
+        }
+    });
+    
+    // Auto-dismiss flash messages after 4 seconds
+    const autoDisposeAlerts = document.querySelectorAll('.auto-dismiss-alert');
+    autoDisposeAlerts.forEach(function(alert) {
+        setTimeout(function() {
+            const bsAlert = new bootstrap.Alert(alert);
+            bsAlert.close();
+        }, 4000); // 4 seconds
+    });
+});
+</script>
+{% endblock %}

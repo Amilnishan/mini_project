@@ -320,6 +320,113 @@ def admin_history():
         flash(f"A database error occurred: {e}", 'danger')
         return redirect(url_for('admin_dashboard'))
 
+@app.route("/admin/manage_bins", methods=['GET', 'POST'])
+def admin_manage_bins():
+    """Admin page to manage bins - create global bins only, no deletion allowed."""
+    if 'loggedin' not in session or session['role'] != 'admin':
+        return redirect(url_for('login'))
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    # --- HANDLE POST REQUEST (Creating a new bin only) ---
+    if request.method == 'POST':
+        action = request.form.get('action')
+        
+        if action == 'create_bin':
+            bin_name = request.form['bin_name'].strip()
+            pin_code = request.form['pin_code'].strip()
+            # No staff_id needed for global bins created by admin
+
+            # Prevent creating another Error Bin manually
+            if bin_name.lower() == 'error bin' or pin_code == '0':
+                flash('Cannot create or modify the reserved Error Bin.', 'danger')
+                cursor.close()
+                conn.close()
+                return redirect(url_for('admin_manage_bins'))
+            else:
+                validation_errors = []
+                if not re.fullmatch(r'\d{6}', pin_code):
+                    validation_errors.append('PIN code must be exactly 6 digits.')
+                elif not pin_code.startswith('673'):
+                    validation_errors.append('PIN code must start with "673".')
+                
+                bin_name_pattern = r'^bin\s+(\d{6})$'
+                bin_name_match = re.match(bin_name_pattern, bin_name.lower())
+                if not bin_name_match:
+                    validation_errors.append('Bin name must be in format "bin XXXXXX" (e.g., "bin 673303").')
+                else:
+                    bin_number = bin_name_match.group(1)
+                    if bin_number != pin_code:
+                        validation_errors.append(f'Bin name number "{bin_number}" must match PIN code "{pin_code}".')
+                
+                if validation_errors:
+                    for error in validation_errors:
+                        flash(error, 'danger')
+                    cursor.close()
+                    conn.close()
+                    return redirect(url_for('admin_manage_bins'))
+                else:
+                    try:
+                        # Create global bin with staff_id = NULL for admin-created bins
+                        cursor.execute(
+                            "INSERT INTO Bin (bin_name, pin, staff_id) VALUES (%s, %s, %s)",
+                            (bin_name, int(pin_code), None)
+                        )
+                        conn.commit()
+                        flash(f" '{bin_name}' created successfully!", 'success')
+                        cursor.close()
+                        conn.close()
+                        return redirect(url_for('admin_manage_bins'))
+                    except mysql.connector.Error as err:
+                        if err.errno == 1062:
+                            flash('A bin with this name or PIN code already exists.', 'danger')
+                        else:
+                            flash(f"Database error: {err}", 'danger')
+                        cursor.close()
+                        conn.close()
+                        return redirect(url_for('admin_manage_bins'))
+
+        elif action == 'delete_bin':
+            bin_id = request.form['bin_id']
+            try:
+                # Check if it's an Error Bin
+                cursor.execute("SELECT bin_name FROM Bin WHERE bin_id = %s", (bin_id,))
+                bin_info = cursor.fetchone()
+                
+                if bin_info and bin_info['bin_name'] == 'Error Bin':
+                    flash('Error Bin cannot be deleted.', 'danger')
+                else:
+                    # Delete the bin
+                    cursor.execute("DELETE FROM Bin WHERE bin_id = %s", (bin_id,))
+                    conn.commit()
+                    flash('Bin deleted successfully!', 'success')
+            except mysql.connector.Error as err:
+                flash(f"Database error: {err}", 'danger')
+            
+            cursor.close()
+            conn.close()
+            return redirect(url_for('admin_manage_bins'))
+
+    # --- HANDLE GET REQUEST (Display all bins) ---
+    # Get all global bins (staff_id IS NULL) and the one error bin
+    cursor.execute("""
+        SELECT bin_id, bin_name, pin
+        FROM Bin 
+        WHERE staff_id IS NULL
+        ORDER BY 
+            CASE WHEN bin_name = 'Error Bin' THEN 0 ELSE 1 END,
+            bin_name
+    """)
+    all_bins = cursor.fetchall()
+
+    cursor.close()
+    conn.close()
+    
+    return render_template('admin_manage_bins.html', 
+                         all_bins=all_bins, 
+                         username=session['username'])
+
 @app.route("/staff/dashboard")
 def staff_dashboard():
     """Renders the staff's main dashboard page."""
@@ -655,7 +762,7 @@ def update_pincode():
 
         # --- Handle "error" input ---
         if manual_input == 'error':
-            error_bin_id = get_or_create_error_bin(staff_id, cursor, conn)
+            error_bin_id = get_or_create_global_error_bin(cursor, conn)
             cursor.execute("""
                 INSERT INTO sorted_item (parcel_id, staff_id, bin_id, sorted_time)
                 VALUES (%s, %s, %s, NOW())
@@ -812,7 +919,7 @@ def sort_parcel():
         
         if not bin_match:
             # Automatically move to Error Bin instead of returning error
-            error_bin_id = get_or_create_error_bin(staff_id, cursor, conn)
+            error_bin_id = get_or_create_global_error_bin(cursor, conn)
             cursor.execute("""
                 INSERT INTO sorted_item (parcel_id, staff_id, bin_id, sorted_time)
                 VALUES (%s, %s, %s, NOW())
@@ -864,8 +971,10 @@ def sort_all_parcels():
         if not staff_id or not login_time:
             return jsonify({'error': 'Session information missing'}), 400
         
+        print(f"DEBUG: Starting batch sort for staff_id={staff_id}, login_time={login_time}")
+        
         conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
+        cursor = conn.cursor(dictionary=True, buffered=True)
         
         # MODIFIED QUERY: Also select the image_path
         cursor.execute("""
@@ -885,7 +994,12 @@ def sort_all_parcels():
         sorted_details = []
         error_details = []
         
-        error_bin_id = get_or_create_error_bin(staff_id, cursor, conn)
+        error_bin_id = get_or_create_global_error_bin(cursor, conn)
+        
+        # Debug: Show all available bins
+        cursor.execute("SELECT bin_id, bin_name, pin FROM Bin WHERE staff_id IS NULL OR staff_id = %s", (staff_id,))
+        available_bins = cursor.fetchall()
+        print(f"DEBUG sort: Available bins for staff {staff_id}: {available_bins}")
 
         for parcel in unsorted_parcels:
             parcel_id = parcel['parcel_id']
@@ -893,8 +1007,10 @@ def sort_all_parcels():
             pin_code = find_pincode_enhanced(address_text)
             
             if pin_code:
-                cursor.execute("SELECT bin_id, bin_name FROM Bin WHERE pin = %s AND staff_id = %s", (int(pin_code), staff_id))
+                # Check for bins accessible to this staff (both staff-specific and global bins)
+                cursor.execute("SELECT bin_id, bin_name FROM Bin WHERE pin = %s AND (staff_id = %s OR staff_id IS NULL)", (int(pin_code), staff_id))
                 bin_match = cursor.fetchone()
+                print(f"DEBUG sort: PIN {pin_code} -> bin_match: {bin_match}")
                 
                 if bin_match:
                     cursor.execute("INSERT INTO sorted_item (parcel_id, staff_id, bin_id, sorted_time) VALUES (%s, %s, %s, NOW())", (parcel_id, staff_id, bin_match['bin_id']))
@@ -938,6 +1054,7 @@ def sort_all_parcels():
         })
         
     except Exception as e:
+        print(f"ERROR in sort_all_parcels: {str(e)}")
         traceback.print_exc()
         return jsonify({'error': f'Server error: {str(e)}'}), 500
 
@@ -989,11 +1106,12 @@ def view_sorted_items():
         flash(f"Error: {e}", 'danger')
         return redirect(url_for('staff_dashboard'))
 
-@app.route("/staff/bins", methods=['GET', 'POST'])
+@app.route("/staff/bins", methods=['GET'])
 def view_bins():
     """
-    Handles viewing the bin list (GET) and creating a new bin (POST).
-    Accessible to staff. Bins are staff-specific.
+    Handles viewing the bin list only (GET).
+    Staff can now only view bins, not create them.
+    Bins are managed by administrators.
     """
     if 'loggedin' not in session or session['role'] != 'staff':
         return redirect(url_for('login'))
@@ -1006,59 +1124,19 @@ def view_bins():
         flash('Staff ID not found in session. Please login again.', 'danger')
         return redirect(url_for('login'))
 
-    # Ensure a single persistent Error Bin exists (pin=0)
-    cursor.execute("SELECT bin_id FROM Bin WHERE staff_id = %s AND bin_name = 'Error Bin'", (staff_id,))
-    eb = cursor.fetchone()
-    if not eb:
-        cursor.execute("INSERT INTO Bin (bin_name, pin, staff_id) VALUES ('Error Bin', 0, %s)", (staff_id,))
-        conn.commit()
-        error_bin_id = cursor.lastrowid
-    else:
-        # eb may be dict or tuple depending on cursor config
-        error_bin_id = eb['bin_id'] if isinstance(eb, dict) else eb[0]
+    # Get the global error bin (shared by all staff)
+    error_bin_id = get_or_create_global_error_bin(cursor, conn)
 
-    # --- HANDLE POST REQUEST (Creating a new bin) ---
-    if request.method == 'POST':
-        bin_name = request.form['bin_name'].strip()
-        pin_code = request.form['pin_code'].strip()
-
-        # Prevent creating another Error Bin manually
-        if bin_name.lower() == 'error bin' or pin_code == '0':
-            flash('Cannot create or modify the reserved Error Bin.', 'danger')
-        else:
-            validation_errors = []
-            if not re.fullmatch(r'\d{6}', pin_code):
-                validation_errors.append('PIN code must be exactly 6 digits.')
-            elif not pin_code.startswith('673'):
-                validation_errors.append('PIN code must start with "673".')
-            bin_name_pattern = r'^bin\s+(\d{6})$'
-            bin_name_match = re.match(bin_name_pattern, bin_name.lower())
-            if not bin_name_match:
-                validation_errors.append('Bin name must be in format "bin XXXXXX" (e.g., "bin 673303").')
-            else:
-                bin_number = bin_name_match.group(1)
-                if bin_number != pin_code:
-                    validation_errors.append(f'Bin name number "{bin_number}" must match PIN code "{pin_code}".')
-            if validation_errors:
-                for error in validation_errors:
-                    flash(error, 'danger')
-            else:
-                try:
-                    cursor.execute(
-                        "INSERT INTO Bin (bin_name, pin, staff_id) VALUES (%s, %s, %s)",
-                        (bin_name, int(pin_code), staff_id)
-                    )
-                    conn.commit()
-                    flash(f"Bin '{bin_name}' created successfully!", 'success')
-                except mysql.connector.Error as err:
-                    if err.errno == 1062:
-                        flash('A bin with this name or PIN code already exists for your account.', 'danger')
-                    else:
-                        flash(f"Database error: {err}", 'danger')
-
-    # --- HANDLE GET REQUEST (Displaying the bin list - STAFF SPECIFIC) ---
-    cursor.execute("SELECT * FROM Bin WHERE staff_id = %s AND bin_name <> 'Error Bin' ORDER BY bin_name", (staff_id,))
+    # --- HANDLE GET REQUEST (Displaying the bin list - GLOBAL BINS ONLY) ---
+    # Get all global bins (staff_id IS NULL) excluding the error bin
+    cursor.execute("""
+        SELECT * FROM Bin 
+        WHERE staff_id IS NULL 
+        AND bin_name <> 'Error Bin' 
+        ORDER BY bin_name
+    """)
     bin_list = cursor.fetchall()
+    print(f"DEBUG view_bins: Staff {staff_id} sees these bins: {[(b['bin_id'], b['bin_name'], b['pin']) for b in bin_list]}")
     cursor.close(); conn.close()
     return render_template('view_bins.html', bin_list=bin_list, error_bin_id=error_bin_id, username=session['username'])
 
@@ -1083,8 +1161,8 @@ def download_bin_pdf(bin_id):
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
 
-        # 1. Get Bin Info (and verify ownership)
-        cursor.execute("SELECT * FROM Bin WHERE bin_id = %s AND staff_id = %s", (bin_id, staff_id))
+        # 1. Get Bin Info (and verify access - both staff-specific and global bins)
+        cursor.execute("SELECT * FROM Bin WHERE bin_id = %s AND (staff_id = %s OR staff_id IS NULL)", (bin_id, staff_id))
         bin_info = cursor.fetchone()
         if not bin_info:
             return "Bin not found or access denied.", 404
@@ -1182,62 +1260,15 @@ def view_sorted_history():
 
 @app.route("/staff/bins/remove/<int:bin_id>", methods=['POST'])
 def remove_bin(bin_id):
-    """Handles removing a bin. Staff can only remove their own bins (not Error Bin)."""
-    if 'loggedin' not in session or session['role'] != 'staff':
-        return redirect(url_for('login'))
-    staff_id = session.get('staff_id')
-    if not staff_id:
-        flash('Staff ID not found in session. Please login again.', 'danger')
-        return redirect(url_for('login'))
-    try:
-        conn = get_db_connection(); cursor = conn.cursor(dictionary=True)
-        cursor.execute("SELECT bin_id, bin_name FROM Bin WHERE bin_id = %s AND staff_id = %s", (bin_id, staff_id))
-        row = cursor.fetchone()
-        if not row:
-            flash('Bin not found or you do not have permission to remove it.', 'danger')
-        elif row['bin_name'] == 'Error Bin':
-            flash('Error Bin is permanent and cannot be removed.', 'danger')
-        else:
-            cursor.execute("DELETE FROM Bin WHERE bin_id = %s AND staff_id = %s", (bin_id, staff_id))
-            if cursor.rowcount > 0:
-                conn.commit(); flash('Bin removed successfully.', 'success')
-            else:
-                flash('Failed to remove bin.', 'danger')
-    except mysql.connector.Error as err:
-        if err.errno == 1451:
-            flash('Cannot remove this bin because it has sorted items linked to it.', 'danger')
-        else:
-            flash(f"Database error: {err}", 'danger')
-    finally:
-        if conn.is_connected(): cursor.close(); conn.close()
+    """Bin removal is now restricted to administrators only."""
+    flash('Bin management is now handled by administrators. Contact your administrator to modify bins.', 'warning')
     return redirect(url_for('view_bins'))
 
 
 @app.route("/staff/bins/remove_all", methods=['POST'])
 def remove_all_bins():
-    """Remove all user-created bins except the permanent Error Bin."""
-    if 'loggedin' not in session or session['role'] != 'staff':
-        return redirect(url_for('login'))
-    staff_id = session.get('staff_id')
-    if not staff_id:
-        flash('Staff ID not found in session. Please login again.', 'danger')
-        return redirect(url_for('login'))
-    try:
-        conn = get_db_connection(); cursor = conn.cursor()
-        cursor.execute("DELETE FROM Bin WHERE staff_id = %s AND bin_name <> 'Error Bin'", (staff_id,))
-        deleted = cursor.rowcount
-        conn.commit()
-        if deleted > 0:
-            flash(f'Removed {deleted} bin(s). Error Bin retained.', 'success')
-        else:
-            flash('No removable bins found.', 'info')
-    except mysql.connector.Error as err:
-        if err.errno == 1451:
-            flash('Some bins could not be removed due to linked sorted items.', 'danger')
-        else:
-            flash(f"Database error: {err}", 'danger')
-    finally:
-        if conn.is_connected(): cursor.close(); conn.close()
+    """Bin removal is now restricted to administrators only."""
+    flash('Bin management is now handled by administrators. Contact your administrator to modify bins.', 'warning')
     return redirect(url_for('view_bins'))
 
 def ensure_parcel_columns():
@@ -1271,12 +1302,13 @@ def bin_contents_fragment(bin_id):
     login_time = session.get('login_time')  # Session-based filter
     try:
         conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
-        cursor.execute("SELECT bin_id, bin_name, pin FROM Bin WHERE bin_id = %s AND staff_id = %s", (bin_id, staff_id))
+        cursor = conn.cursor(dictionary=True, buffered=True)
+        cursor.execute("SELECT bin_id, bin_name, pin FROM Bin WHERE bin_id = %s AND (staff_id = %s OR staff_id IS NULL)", (bin_id, staff_id))
+        print(f"DEBUG bin_contents: Fetching contents for bin_id={bin_id}, staff_id={staff_id}, login_time={login_time}")
         bin_info = cursor.fetchone()
         if not bin_info:
             cursor.close(); conn.close()
-            return jsonify({'error': 'Bin not found'}), 404
+            return jsonify({'error': 'Bin not found or access denied'}), 404
         if login_time:
             cursor.execute("""
                 SELECT si.sort_id, si.parcel_id, si.sorted_time, p.extracted_address, p.upload_time, b.pin
@@ -1296,20 +1328,21 @@ def bin_contents_fragment(bin_id):
                 ORDER BY si.sorted_time DESC
             """, (bin_id, staff_id))
         bin_contents = cursor.fetchall()
+        print(f"DEBUG bin_contents: Found {len(bin_contents)} items in bin {bin_info['bin_name']}")
         cursor.close(); conn.close()
         return render_template('bin_contents_fragment.html', bin_info=bin_info, bin_contents=bin_contents)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# Helper: ensure an Error Bin exists for a staff member
-def get_or_create_error_bin(staff_id, cursor, conn):
-    """Return bin_id for the staff member's Error Bin (create if missing)."""
-    cursor.execute("SELECT bin_id FROM Bin WHERE bin_name = %s AND staff_id = %s", ('Error Bin', staff_id))
+# Helper: ensure a global Error Bin exists (shared by all staff)
+def get_or_create_global_error_bin(cursor, conn):
+    """Return bin_id for the global Error Bin (create if missing)."""
+    cursor.execute("SELECT bin_id FROM Bin WHERE bin_name = %s AND staff_id IS NULL", ('Error Bin',))
     row = cursor.fetchone()
     if row:
         return row['bin_id'] if isinstance(row, dict) else row[0]
-    # Create with pin=0 (reserved). Assumes no validation here.
-    cursor.execute("INSERT INTO Bin (bin_name, pin, staff_id) VALUES (%s, %s, %s)", ('Error Bin', 0, staff_id))
+    # Create global error bin with pin=0 (reserved) and staff_id = NULL
+    cursor.execute("INSERT INTO Bin (bin_name, pin, staff_id) VALUES (%s, %s, %s)", ('Error Bin', 0, None))
     conn.commit()
     return cursor.lastrowid
 

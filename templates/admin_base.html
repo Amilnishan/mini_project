@@ -26,7 +26,8 @@
       <div class="d-flex align-items-center gap-2">
         <a class="btn btn-outline-primary admin-nav-btn" href="{{ url_for('admin_dashboard') }}">Home</a>
         <a class="btn btn-outline-success admin-nav-btn" href="{{ url_for('manage_staff') }}">Manage Staff</a>
-        <a class="btn btn-outline-warning admin-nav-btn" href="{{ url_for('admin_history') }}">View Sorted History</a>
+        <a class="btn btn-outline-warning admin-nav-btn" href="{{ url_for('admin_manage_bins') }}">Manage Bins</a>
+        <a class="btn btn-outline-info admin-nav-btn" href="{{ url_for('admin_history') }}">View Sorted History</a>
         <a class="btn btn-primary text-white" href="{{ url_for('logout') }}">Logout</a>
       </div>
   <style>
@@ -47,6 +48,11 @@
       background: #ffc107;
       color: #212529;
       border-color: #ffc107;
+    }
+    .btn-outline-info.admin-nav-btn:hover, .btn-outline-info.admin-nav-btn:focus {
+      background: #0dcaf0;
+      color: #212529;
+      border-color: #0dcaf0;
     }
   </style>
     </div>

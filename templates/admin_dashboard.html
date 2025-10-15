@@ -30,7 +30,7 @@
 
   <!-- Quick Stats Cards -->
   <div class="row mb-5 justify-content-center">
-    <div class="col-lg-6 col-md-6 mb-4">
+    <div class="col-lg-4 col-md-6 mb-4">
       <div class="card border-0 shadow-sm h-100 dashboard-stat-card">
         <div class="card-body text-center p-4">
           <div class="stat-icon bg-primary mb-3">
@@ -45,14 +45,29 @@
       </div>
     </div>
 
-    <div class="col-lg-6 col-md-6 mb-4">
+    <div class="col-lg-4 col-md-6 mb-4">
+      <div class="card border-0 shadow-sm h-100 dashboard-stat-card">
+        <div class="card-body text-center p-4">
+          <div class="stat-icon bg-warning mb-3">
+            <i class="fas fa-boxes text-white"></i>
+          </div>
+          <h3 class="fw-bold text-warning mb-2">Bin Management</h3>
+          <p class="text-muted mb-3">Create and manage sorting bins for all staff members</p>
+          <a href="{{ url_for('admin_manage_bins') }}" class="btn btn-warning btn-sm px-4 text-white">
+            <i class="fas fa-boxes me-2"></i>Manage Bins
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-4 col-md-6 mb-4">
       <div class="card border-0 shadow-sm h-100 dashboard-stat-card">
         <div class="card-body text-center p-4">
           <div class="stat-icon bg-success mb-3">
             <i class="fas fa-chart-line text-white"></i>
           </div>
           <h3 class="fw-bold text-success mb-2">Analytics</h3>
-          <p class="text-muted mb-3">View processing statistics and performance metrics</p>
+          <p class="text-muted mb-3">View processing statistics and performance <br>metrics</p>
           <a href="{{ url_for('admin_history') }}" class="btn btn-success btn-sm px-4">
             <i class="fas fa-chart-bar me-2"></i>View Reports
           </a>
